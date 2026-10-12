@@ -1,14 +1,12 @@
 package com.osrs.combined;
-
-import net.runelite.client.RuneLite;
-import net.runelite.client.externalplugins.ExternalPluginManager;
 import com.osrs.combatcoach.CombatCoachPlugin;
 import com.milestones.screenshots.MilestoneScreenshotsPlugin;
-
-public class CombinedLauncher {
-    public static void main(String[] args) throws Exception {
-        ExternalPluginManager.loadBuiltin(CombatCoachPlugin.class);
-        ExternalPluginManager.loadBuiltin(MilestoneScreenshotsPlugin.class);
+import net.runelite.client.RuneLite;
+import net.runelite.client.externalplugins.ExternalPluginManager;
+public final class CombinedLauncher {
+    public static void main(String[] args)throws Exception {
+        ExternalPluginManager.loadBuiltin(CombatCoachPlugin.class,MilestoneScreenshotsPlugin.class);
+        System.out.println("COMBAT COACH 4.0.1-rc.1 - both plugins registered");
         RuneLite.main(args);
     }
 }

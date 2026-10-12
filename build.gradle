@@ -1,6 +1,5 @@
 plugins { id 'java' }
 repositories {
-    mavenLocal()
     maven { url = 'https://repo.runelite.net'; content { includeGroupByRegex('net\\.runelite.*') } }
     mavenCentral()
 }
@@ -13,12 +12,25 @@ dependencies {
     testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
     testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
 }
-group = 'com.osrs.combined'
-version = '0.1.0'
+group = 'com.osrs.combatcoach'
+version = '4.0.1-rc.1'
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.release.set(11) }
 tasks.register('run', JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
     mainClass = 'com.osrs.combined.CombinedLauncher'
     jvmArgs '-ea'
-    args '--developer-mode', '--debug'
+    args '--developer-mode'
+}
+['CoachUiVerification', 'CoachCaptureVerification', 'CoachOverlayVerification', 'CoachV4Verification', 'CoachFileBoundaryVerification'].each { testClass ->
+    tasks.register(testClass, JavaExec) {
+        dependsOn tasks.named('testClasses')
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = "com.osrs.combatcoach.${testClass}"
+        jvmArgs '-Djava.awt.headless=true', '-Dfile.encoding=UTF-8'
+        args layout.buildDirectory.dir('premium-ui-checks').get().asFile.absolutePath
+    }
+}
+tasks.register('verifyRelease') {
+    dependsOn tasks.named('build')
+    dependsOn 'CoachUiVerification', 'CoachCaptureVerification', 'CoachOverlayVerification', 'CoachV4Verification', 'CoachFileBoundaryVerification'
 }
