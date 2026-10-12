@@ -27,6 +27,8 @@ final class CombatCoachPanel extends PluginPanel {
     private final JSpinner goal = new JSpinner(new SpinnerNumberModel(20,1,99,1));
     private final JLabel eta = label("Train to your goal to see an ETA",13,WHITE,true);
     private final JLabel remaining = label("Waiting for XP...",12,MUTED,false);
+    private final JTextArea measuredBest = emphasis("No measured winner yet",13,GREEN);
+    private final JTextArea measuredCompare = wrap();
     private int currentLevel=1;
     private int currentXp=0;
     private long currentRate=-1;
@@ -86,6 +88,18 @@ final class CombatCoachPanel extends PluginPanel {
         goalCard.add(gap(6));
         goalCard.add(eta);
         contents.add(goalCard);
+        contents.add(gap(10));
+
+        JPanel comparison = card();
+        comparison.add(section("MONSTER XP COMPARISON", YELLOW));
+        comparison.add(gap(7));
+        comparison.add(measuredBest);
+        comparison.add(gap(7));
+        measuredCompare.setForeground(MUTED);
+        comparison.add(measuredCompare);
+        comparison.add(gap(7));
+        comparison.add(label("Observed sessions only. Not a global best claim.",11,MUTED,false));
+        contents.add(comparison);
         contents.add(gap(10));
 
         JPanel build = card();
@@ -228,7 +242,9 @@ final class CombatCoachPanel extends PluginPanel {
         statTiles.add(tile);
     }
 
-    void updateProgress(int xp,long ratePerHour) {
+    void updateProgress(int xp,long ratePerHour,String bestMonster,String comparisonText) {
+        measuredBest.setText(bestMonster);
+        measuredCompare.setText(comparisonText);
         currentXp=xp;
         currentRate=ratePerHour;
         rate.setText(ratePerHour<0?"Waiting for XP gains":String.format(java.util.Locale.US,"%,d XP/hr",ratePerHour));
@@ -265,6 +281,8 @@ final class CombatCoachPanel extends PluginPanel {
         skill.setText("Log in for recommendations");
         target.setText("Waiting for game...");
         rate.setText("Waiting for combat XP");
+        measuredBest.setText("No measured winner yet");
+        measuredCompare.setText("");
         statsA.setText("-");
         statsB.setText("-");
         statsC.setText("-");
