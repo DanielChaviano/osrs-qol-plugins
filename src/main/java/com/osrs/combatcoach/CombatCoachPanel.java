@@ -118,7 +118,7 @@ final class CombatCoachPanel extends PluginPanel {
         skillPanel.add(skills);
         addSection(content,skillPanel);
 
-        JButton route=button("GUIDE ME TO TARGET  > ",navigate,true);
+        JButton route=button("➤  NAVIGATE TO MONSTER",navigate,true);
         JButton reroll=button("Refresh recommendation",refresh,false);
         content.add(route);content.add(gap(6));content.add(reroll);content.add(gap(10));
 
@@ -256,11 +256,17 @@ final class CombatCoachPanel extends PluginPanel {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
             int cx=getWidth()/2,cy=60,r=43;
             g.setStroke(new BasicStroke(10,BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
-            g.setColor(new Color(54,69,79));
+            g.setColor(new Color(43,62,79));
             g.draw(new Arc2D.Double(cx-r,cy-r,r*2,r*2,0,360,Arc2D.OPEN));
-            float alpha=(float)(0.75+0.25*Math.sin(shimmer));
-            g.setColor(new Color(101,235,171,Math.max(0,Math.min(255,(int)(alpha*255)))));
+            float alpha=(float)(0.85+0.15*Math.sin(shimmer));
+            g.setColor(new Color(89,241,174,Math.max(0,Math.min(255,(int)(alpha*255)))));
             g.draw(new Arc2D.Double(cx-r,cy-r,r*2,r*2,90,-360*shown,Arc2D.OPEN));
+            // Moving endpoint light follows the animated XP progress.
+            double angle=Math.toRadians(90-360*shown);
+            int dotX=(int)Math.round(cx+r*Math.cos(angle));
+            int dotY=(int)Math.round(cy-r*Math.sin(angle));
+            g.setColor(new Color(159,255,215,80));g.fillOval(dotX-9,dotY-9,18,18);
+            g.setColor(new Color(190,255,230));g.fillOval(dotX-4,dotY-4,8,8);
             g.setFont(new Font(Font.DIALOG,Font.BOLD,21));
             String pct=String.format(Locale.US,"%.1f%%",shown*100);
             FontMetrics fm=g.getFontMetrics();g.setColor(LIGHT);
@@ -334,10 +340,10 @@ final class CombatCoachPanel extends PluginPanel {
     }
     private static JButton button(String text,ActionListener fn,boolean primary) {
         JButton b=new JButton(text);b.addActionListener(fn);
-        b.setForeground(primary?new Color(16,24,27):LIGHT);
-        b.setBackground(primary?new Color(105,221,168):PANEL);
+        b.setForeground(primary?new Color(20,18,14):LIGHT);
+        b.setBackground(primary?new Color(252,204,98):PANEL);
         if (primary) b.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(170,247,204),1,true),
+            BorderFactory.createLineBorder(new Color(255,233,153),1,true),
             new EmptyBorder(5,6,5,6)));
         b.setFocusPainted(false);b.setFont(new Font(Font.DIALOG,Font.BOLD,12));
         b.setAlignmentX(Component.LEFT_ALIGNMENT);
