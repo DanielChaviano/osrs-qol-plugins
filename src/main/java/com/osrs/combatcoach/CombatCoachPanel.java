@@ -226,6 +226,7 @@ final class CombatCoachPanel extends PluginPanel {
     private void resizeArea(JTextArea area) {
         int width=textWidth;
         // Measure using the exact available width; zero-height text areas are hidden.
+        area.setPreferredSize(null);
         area.setSize(width, Short.MAX_VALUE);
         int height=area.getText().isEmpty() ? 0 :
             Math.max(area.getFontMetrics(area.getFont()).getHeight()+3,area.getPreferredSize().height+3);
