@@ -43,6 +43,10 @@ public class CombatCoachPlugin extends Plugin {
     private Skill active = Skill.ATTACK;
     private long lastSkillGain = 0;
     private boolean ready;
+    private Skill measuredSkill;
+    private int sessionStartXp = -1;
+    private long sessionStartMs;
+    private int recentXp = -1;
     private TrainingSpot currentSpot;
     private static final BufferedImage PIN = makePin();
 
@@ -63,7 +67,7 @@ public class CombatCoachPlugin extends Plugin {
     @Subscribe public void onGameStateChanged(GameStateChanged event) {
         ready = event.getGameState() == GameState.LOGGED_IN;
         if (!ready) { clearMarker(); if (panel != null) SwingUtilities.invokeLater(() -> panel.clear()); }
-        else refresh();
+        else { measuredSkill=null; sessionStartXp=-1; recentXp=-1; refresh(); }
     }
     @Subscribe public void onStatChanged(StatChanged event) {
         Skill s=event.getSkill();
@@ -75,6 +79,12 @@ public class CombatCoachPlugin extends Plugin {
         if (oldXp == null || xp <= oldXp) return;
         if (s == Skill.HITPOINTS) return;
         active=s;
+        if (measuredSkill != s || sessionStartXp < 0) {
+            measuredSkill=s;
+            sessionStartXp=oldXp;
+            sessionStartMs=System.currentTimeMillis();
+        }
+        recentXp=xp;
         lastSkillGain=System.currentTimeMillis();
         refresh();
     }
@@ -114,7 +124,16 @@ public class CombatCoachPlugin extends Plugin {
             destination.setName("Combat Coach: " + next.name);
             mapPoints.add(destination);
         }
-        SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next,loadout); });
+        SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next,loadout,rateFor(chosen)); });
+    }
+    private String rateFor(Skill chosen) {
+        if (measuredSkill != chosen || sessionStartXp < 0 || recentXp < sessionStartXp) {
+            return "Measured XP/hr: waiting for XP gains";
+        }
+        long ms = System.currentTimeMillis() - sessionStartMs;
+        if (ms < 60000) return "Measured XP/hr: collecting data (1 min minimum)";
+        long rate = Math.round((recentXp - sessionStartXp) * 3600000.0 / ms);
+        return "Measured XP/hr: " + String.format(java.util.Locale.US, "%,d", rate);
     }
     private void navigateToRecommendation() {
         if (!ready || currentSpot == null || client.getLocalPlayer() == null) return;
