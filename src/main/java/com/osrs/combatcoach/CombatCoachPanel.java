@@ -10,7 +10,7 @@ final class CombatCoachPanel extends PluginPanel {
     private final JLabel target = new JLabel(" ");
     private final JTextArea description = new JTextArea();
     private final JLabel level = new JLabel(" ");
-    CombatCoachPanel(ActionListener refresh) {
+    CombatCoachPanel(ActionListener refresh, ActionListener navigate) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         JLabel heading = new JLabel("COMBAT COACH");
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 17f));
@@ -29,13 +29,18 @@ final class CombatCoachPanel extends PluginPanel {
         button.addActionListener(refresh);
         button.setAlignmentX(Component.LEFT_ALIGNMENT);
         add(button);
+        add(Box.createVerticalStrut(8));
+        JButton navigateButton = new JButton("Navigate with Shortest Path");
+        navigateButton.addActionListener(navigate);
+        navigateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        add(navigateButton);
     }
     void showRecommendation(String trainingSkill, int skillLevel, TrainingSpot spot) {
         skill.setText("Training: " + trainingSkill);
         level.setText("Skill level: " + skillLevel);
         target.setText("Suggested: " + spot.name);
         description.setText("WHY: " + spot.reason + "\n\nREQUIRES: " + spot.requirements +
-            "\n\nOpen the full world map (M) to find the blue destination circle. " +
+            "\n\nClick Navigate with Shortest Path to request a walkable route, or open the world map (M) for the blue marker. " +
             "Suggestions are a curated starting route, not guaranteed maximum XP/hr.");
     }
     void clear() { skill.setText("Log in to get suggestions"); level.setText(" "); target.setText(" "); description.setText(""); }
