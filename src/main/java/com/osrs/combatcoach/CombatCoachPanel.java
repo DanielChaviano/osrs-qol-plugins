@@ -43,7 +43,7 @@ final class CombatCoachPanel extends PluginPanel {
         setLayout(new BorderLayout());
         setBackground(BG);
         // Deliberately one vertical scroll container; its content cannot grow horizontally.
-        JPanel body=new JPanel();
+        JPanel body=new ScrollBody();
         body.setBackground(BG);
         body.setLayout(new BoxLayout(body,BoxLayout.Y_AXIS));
         body.setBorder(new EmptyBorder(10,8,14,8));
@@ -118,10 +118,7 @@ final class CombatCoachPanel extends PluginPanel {
         scroller.setBorder(null);
         scroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroller.getVerticalScrollBar().setUnitIncrement(16);
-        scroller.setViewportView(new JPanel(new BorderLayout()) {{
-            setBackground(BG);
-            add(body,BorderLayout.NORTH);
-        }});
+        scroller.setViewportView(body);
         // Keep content bounded; do not rely on fragile per-label width hacks.
         add(scroller,BorderLayout.CENTER);
 
@@ -134,6 +131,13 @@ final class CombatCoachPanel extends PluginPanel {
         animate.start();
     }
 
+    private static final class ScrollBody extends JPanel implements Scrollable {
+        public Dimension getPreferredScrollableViewportSize(){return getPreferredSize();}
+        public int getScrollableUnitIncrement(Rectangle r,int o,int d){return 16;}
+        public int getScrollableBlockIncrement(Rectangle r,int o,int d){return Math.max(32,r.height-32);}
+        public boolean getScrollableTracksViewportWidth(){return true;}
+        public boolean getScrollableTracksViewportHeight(){return false;}
+    }
     private static JPanel card() {
         JPanel x=new JPanel();x.setLayout(new BoxLayout(x,BoxLayout.Y_AXIS));
         x.setBackground(CARD);x.setBorder(new EmptyBorder(11,10,11,10));
