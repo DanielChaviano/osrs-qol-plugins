@@ -18,6 +18,7 @@ final class CombatCoachPanel extends PluginPanel {
     private static final Color CYAN = new Color(93, 213, 240);
     private static final Color GREEN = new Color(112, 220, 156);
     private static final Color YELLOW = new Color(255, 205, 107);
+    private static final int TEXT_WIDTH = 165;
 
     private final JLabel skill = label("Log in for recommendations", 14, WHITE, true);
     private final JTextArea target = emphasis("Waiting for game...", 16, GREEN);
@@ -69,7 +70,11 @@ final class CombatCoachPanel extends PluginPanel {
         xp.add(gap(6));
         xp.add(rate);
         xp.add(gap(5));
-        xp.add(label("Measured during this session; not a prediction.", 11, MUTED, false));
+        JTextArea xpCaption = wrap();
+        xpCaption.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
+        xpCaption.setForeground(MUTED);
+        fit(xpCaption, "Live rate from your own combat XP.");
+        xp.add(xpCaption);
         contents.add(xp);
         contents.add(gap(10));
 
@@ -99,7 +104,11 @@ final class CombatCoachPanel extends PluginPanel {
         measuredCompare.setForeground(MUTED);
         comparison.add(measuredCompare);
         comparison.add(gap(7));
-        comparison.add(label("Observed sessions only. Not a global best claim.",11,MUTED,false));
+        JTextArea comparisonCaption = wrap();
+        comparisonCaption.setFont(new Font(Font.DIALOG, Font.PLAIN, 11));
+        comparisonCaption.setForeground(MUTED);
+        fit(comparisonCaption, "Only monsters you have tested.");
+        comparison.add(comparisonCaption);
         contents.add(comparison);
         contents.add(gap(10));
         JPanel estimates = card();
@@ -139,7 +148,7 @@ final class CombatCoachPanel extends PluginPanel {
         JTextArea disclaimer = wrap();
         disclaimer.setForeground(MUTED);
         disclaimer.setFont(new Font(Font.DIALOG, Font.ITALIC, 11));
-        disclaimer.setText("Training spots are equipment-aware suggestions, not yet verified highest XP/hour.");
+        fit(disclaimer, "Predictions are estimates, not verified best XP/hour.");
         contents.add(disclaimer);
 
         JScrollPane scroller = new JScrollPane(contents);
@@ -189,7 +198,18 @@ final class CombatCoachPanel extends PluginPanel {
         a.setForeground(WHITE);
         a.setAlignmentX(Component.LEFT_ALIGNMENT);
         a.setBorder(null);
+        a.setColumns(18);
         return a;
+    }
+
+    private static void fit(JTextArea area, String content) {
+        area.setText(content == null ? "" : content);
+        area.setSize(TEXT_WIDTH, Short.MAX_VALUE);
+        int height=Math.max(area.getPreferredSize().height, area.getFontMetrics(area.getFont()).getHeight()+2);
+        Dimension size=new Dimension(TEXT_WIDTH, height);
+        area.setPreferredSize(size);
+        area.setMinimumSize(size);
+        area.setMaximumSize(size);
     }
 
     private static Component gap(int pixels) {
@@ -211,9 +231,13 @@ final class CombatCoachPanel extends PluginPanel {
     void showRecommendation(String trainingSkill, int skillLevel, TrainingSpot spot,
                             CombatLoadout gear, String xpRate, String predicted) {
         skill.setText(trainingSkill + "  /  Level " + skillLevel);
-        modelCompare.setText(predicted);
-        target.setText(spot.name);
-        rate.setText(xpRate.replace("Measured XP/hr: ", ""));
+        String shortPrediction=predicted == null ? "" : predicted;
+        int assumptions=shortPrediction.indexOf("Estimates assume");
+        if (assumptions>=0) shortPrediction=shortPrediction.substring(0,assumptions).trim();
+        shortPrediction=shortPrediction.replace("Highest modelled: ","Model best: ");
+        fit(modelCompare,shortPrediction);
+        fit(target,spot.name);
+        fit(rate,xpRate.replace("Measured XP/hr: ", ""));
         statTiles.removeAll();
         addTile("ATK",gear.attack,trainingSkill.equalsIgnoreCase("Attack"));
         addTile("STR",gear.strength,trainingSkill.equalsIgnoreCase("Strength"));
@@ -234,8 +258,9 @@ final class CombatCoachPanel extends PluginPanel {
         if (explanation.startsWith("Gear: ") && delimiter >= 0) {
             explanation = explanation.substring(delimiter + 2);
         }
-        reason.setText(explanation);
-        access.setText(spot.requirements);
+        fit(reason,explanation);
+        fit(access,spot.requirements);
+        statTiles.revalidate();
         revalidate();
         repaint();
     }
@@ -252,11 +277,11 @@ final class CombatCoachPanel extends PluginPanel {
     }
 
     void updateProgress(int xp,long ratePerHour,String bestMonster,String comparisonText) {
-        measuredBest.setText(bestMonster);
-        measuredCompare.setText(comparisonText);
+        fit(measuredBest,bestMonster);
+        fit(measuredCompare,comparisonText == null ? "" : comparisonText.replace("; ","\n"));
         currentXp=xp;
         currentRate=ratePerHour;
-        rate.setText(ratePerHour<0?"Waiting for XP gains":String.format(java.util.Locale.US,"%,d XP/hr",ratePerHour));
+        fit(rate,ratePerHour<0?"Waiting for XP gains":String.format(java.util.Locale.US,"%,d XP/hr",ratePerHour));
         updateGoal();
     }
 
