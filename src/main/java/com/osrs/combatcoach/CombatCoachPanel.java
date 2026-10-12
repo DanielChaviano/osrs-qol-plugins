@@ -17,8 +17,8 @@ final class CombatCoachPanel extends PluginPanel {
     private static final Color YELLOW = new Color(255, 205, 107);
 
     private final JLabel skill = label("Log in for recommendations", 14, WHITE, true);
-    private final JLabel target = label("Waiting for game...", 16, GREEN, true);
-    private final JLabel rate = label("Waiting for combat XP", 13, WHITE, true);
+    private final JTextArea target = emphasis("Waiting for game...", 16, GREEN);
+    private final JTextArea rate = emphasis("Waiting for combat XP", 14, WHITE);
     private final JLabel statsA = label("-", 13, WHITE, false);
     private final JLabel statsB = label("-", 13, WHITE, false);
     private final JLabel statsC = label("-", 13, WHITE, false);
@@ -128,6 +128,14 @@ final class CombatCoachPanel extends PluginPanel {
 
     private static JLabel section(String text, Color color) {
         return label(text, 11, color, true);
+    }
+
+    private static JTextArea emphasis(String value, int size, Color color) {
+        JTextArea result = wrap();
+        result.setText(value);
+        result.setFont(new Font(Font.DIALOG, Font.BOLD, size));
+        result.setForeground(color);
+        return result;
     }
 
     private static JTextArea wrap() {
