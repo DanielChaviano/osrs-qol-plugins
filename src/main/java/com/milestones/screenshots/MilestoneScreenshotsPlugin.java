@@ -13,6 +13,9 @@ import net.runelite.api.Skill;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.StatChanged;
+import net.runelite.client.events.ScreenshotTaken;
+import net.runelite.client.Notifier;
+import net.runelite.api.ChatMessageType;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
@@ -23,6 +26,8 @@ import net.runelite.client.util.ImageCapture;
 public class MilestoneScreenshotsPlugin extends Plugin
 {
     @Inject private Client client;
+    @Inject private Notifier notifier;
+    private final java.util.Set<String> awaiting = new java.util.HashSet<>();
     @Inject private ImageCapture imageCapture;
     @Inject private MilestoneScreenshotsConfig config;
 
@@ -53,6 +58,7 @@ public class MilestoneScreenshotsPlugin extends Plugin
     {
         knownLevels.clear();
         captures.clear();
+        awaiting.clear();
         initialized = false;
         ticks = 0;
     }
@@ -91,7 +97,36 @@ public class MilestoneScreenshotsPlugin extends Plugin
         {
             Capture capture = captures.removeFirst();
             String file = capture.skill.name().toLowerCase() + "-level-" + capture.level + "-" + System.currentTimeMillis();
-            imageCapture.takeScreenshot("Milestones", file, config.includeFrame(), config.notifyOnScreenshot(), false);
+            awaiting.add(file);
+            imageCapture.takeScreenshot("Milestones", file, config.includeFrame(), false, false);
+        }
+    }
+
+    @Subscribe
+    public void onScreenshotTaken(ScreenshotTaken event)
+    {
+        java.io.File saved=event.getPath();
+        if (saved==null) return;
+        String filename=saved.getName();
+        boolean ours=false;
+        for (String pending : new java.util.HashSet<>(awaiting))
+        {
+            if (filename.contains(pending))
+            {
+                awaiting.remove(pending);
+                ours=true;
+                break;
+            }
+        }
+        if (!ours) return;
+        String location=saved.getAbsolutePath();
+        // Completion event is only issued after RuneLite has captured the image.
+        client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
+            "Milestone screenshot captured! Saved to: " + location, null);
+        if (config.notifyOnScreenshot())
+        {
+            notifier.notify("Milestone screenshot saved: " + filename +
+                " | Folder: " + saved.getParent());
         }
     }
 
