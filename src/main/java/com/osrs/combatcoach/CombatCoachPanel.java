@@ -33,8 +33,6 @@ final class CombatCoachPanel extends PluginPanel {
     private final ActionListener goalCallback;
     private final JLabel statsB = label("-", 13, WHITE, false);
     private final JLabel statsC = label("-", 13, WHITE, false);
-    private final JLabel weapon = label("-", 14, CYAN, true);
-    private final JTextArea armor = wrap();
     private final JTextArea reason = wrap();
     private final JTextArea access = wrap();
 
@@ -96,14 +94,6 @@ final class CombatCoachPanel extends PluginPanel {
         statTiles.setOpaque(false);
         statTiles.setAlignmentX(Component.LEFT_ALIGNMENT);
         build.add(statTiles);
-        build.add(gap(11));
-        build.add(section("EQUIPPED WEAPON", CYAN));
-        build.add(gap(5));
-        build.add(weapon);
-        build.add(gap(11));
-        build.add(section("OTHER EQUIPMENT", CYAN));
-        build.add(gap(5));
-        build.add(armor);
         contents.add(build);
         contents.add(gap(10));
 
@@ -214,8 +204,6 @@ final class CombatCoachPanel extends PluginPanel {
         updateGoal();
         statsB.setText("HP " + gear.hitpoints + "    RNG " + gear.ranged + "    MAG " + gear.magic);
         statsC.setText("PRAYER " + gear.prayer);
-        weapon.setText(gear.weapon);
-        armor.setText(gear.armor);
         // The legacy planner puts a duplicated gear/stat summary in the reason.
         // Display the actionable explanation without repeating all seven levels.
         String explanation = spot.reason;
@@ -280,8 +268,6 @@ final class CombatCoachPanel extends PluginPanel {
         statsA.setText("-");
         statsB.setText("-");
         statsC.setText("-");
-        weapon.setText("-");
-        armor.setText("");
         reason.setText("");
         access.setText("");
     }
