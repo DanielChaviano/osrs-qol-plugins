@@ -2,6 +2,8 @@ package com.osrs.combatcoach;
 
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.awt.geom.Arc2D;
+import java.awt.geom.RoundRectangle2D;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -10,180 +12,241 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.PluginPanel;
 
-/** Compact dashboard: use the sidebar's own vertical scrolling, never horizontal overflow. */
+/** Animated, narrow-screen Combat Coach dashboard. No gameplay automation. */
 final class CombatCoachPanel extends PluginPanel {
-    private static final Color BG=new Color(22,27,34), CARD=new Color(36,43,53);
-    private static final Color FG=new Color(240,245,250), MUTED=new Color(169,182,196);
-    private static final Color ACCENT=new Color(82,202,229), GOLD=new Color(245,192,89);
-    private static final Color GREEN=new Color(102,224,166);
+    private static final Color BG=new Color(16,21,29);
+    private static final Color PANEL=new Color(27,35,46);
+    private static final Color LIGHT=new Color(238,247,250);
+    private static final Color MUTED=new Color(160,178,190);
+    private static final Color CYAN=new Color(79,210,239);
+    private static final Color GREEN=new Color(101,235,171);
+    private static final Color GOLD=new Color(255,207,115);
 
-    private final JLabel training=text("Waiting for game",15,FG,true);
-    private final JLabel monster=text("-",16,GREEN,true);
-    private final JLabel remaining=text("Waiting for XP",12,MUTED,false);
-    private final JLabel eta=text("Start training for an ETA",14,FG,true);
-    private final JLabel duration=text("",12,MUTED,false);
-    private final JProgressBar progress=new JProgressBar(0,1000);
+    private final Label headline=new Label("STRENGTH",14,LIGHT,true);
+    private final Label level=new Label("LEVEL --",12,MUTED,true);
+    private final Label recommended=new Label("Waiting for recommendation",14,GREEN,true);
+    private final Label forecast=new Label("Start fighting to estimate",14,LIGHT,true);
+    private final Label duration=new Label("",12,MUTED,false);
+    private final Label remaining=new Label("Waiting for XP",12,MUTED,false);
+    private final Label status=new Label("AWAITING DATA",10,GOLD,true);
+    private final Label why=new Label("",12,LIGHT,false);
+    private final Label access=new Label("",12,MUTED,false);
+    private final Label best=new Label("",12,GREEN,true);
+    private final Label comparison=new Label("",12,MUTED,false);
+    private final Label predicted=new Label("",12,MUTED,false);
     private final JSpinner goal=new JSpinner(new SpinnerNumberModel(20,2,99,1));
-    private final JLabel status=text("MEASURING",10,GOLD,true);
-    private final JPanel skillGrid=new JPanel(new GridLayout(0,3,5,5));
-    private final JLabel best=text("No measured results yet",12,GREEN,true);
-    private final JLabel summary=text("",11,MUTED,false);
-    private final JLabel model=text("",11,MUTED,false);
-    private final JLabel why=text("",12,FG,false);
-    private final JLabel requires=text("",11,MUTED,false);
-    private final JButton more=new JButton("Show training details  v");
-    private final JPanel details=new JPanel();
-    private final Timer animate;
-    private int currentLevel=1, currentXp=0;
+    private final Ring ring=new Ring();
+    private final JPanel skills=new JPanel(new GridLayout(0,3,5,5));
+    private final JPanel drawer=new JPanel();
+    private final JButton drawerButton=new JButton("TRAINING ANALYSIS  +");
+    private final javax.swing.Timer animations;
+    private int currentLevel=1,currentXp=0,previousLevel=-1;
     private long currentRate=-1;
-    private double visualProgress=0;
-    private double wantedProgress=0;
+    private boolean updatingGoal=false;
+    private long celebrateUntil=0;
 
-    CombatCoachPanel(ActionListener refresh, ActionListener navigate, ActionListener goalChanged) {
+    CombatCoachPanel(ActionListener refresh,ActionListener navigate,ActionListener goalChanged) {
         setLayout(new BorderLayout());
         setBackground(BG);
-        // Deliberately one vertical scroll container; its content cannot grow horizontally.
-        JPanel body=new ScrollBody();
-        body.setBackground(BG);
-        body.setLayout(new BoxLayout(body,BoxLayout.Y_AXIS));
-        body.setBorder(new EmptyBorder(10,8,14,8));
-        body.add(text("COMBAT COACH",18,FG,true));
-        body.add(space(10));
+        ScrollBody content=new ScrollBody();
+        content.setLayout(new BoxLayout(content,BoxLayout.Y_AXIS));
+        content.setBackground(BG);
+        content.setBorder(new EmptyBorder(10,8,15,8));
 
-        JPanel hero=card();
-        hero.add(header("CURRENT TRAINING",ACCENT));
-        hero.add(space(4)); hero.add(training);
-        hero.add(space(9)); hero.add(header("BEST SUGGESTED SPOT",GREEN));
-        hero.add(space(4)); hero.add(monster);
-        body.add(hero);body.add(space(8));
+        JPanel banner=panel();
+        banner.setBackground(new Color(22,43,54));
+        banner.add(small("COMBAT COACH  /  LIVE",CYAN));
+        banner.add(gap(7));
+        banner.add(headline);
+        banner.add(gap(3));
+        banner.add(level);
+        banner.add(gap(8));
+        banner.add(small("RECOMMENDED TARGET",MUTED));
+        banner.add(gap(3));
+        banner.add(recommended);
+        addSection(content,banner);
 
-        JPanel goalCard=card();
-        goalCard.add(header("LEVEL TARGET",GOLD));
-        goalCard.add(space(6));
-        JPanel selector=new JPanel(new BorderLayout(5,0));
+        JPanel goalPanel=panel();
+        goalPanel.add(small("LEVEL PROGRESSION",GOLD));
+        goalPanel.add(gap(7));
+        JPanel selector=new JPanel(new BorderLayout(4,0));
         selector.setOpaque(false);
-        selector.add(text("Goal",12,FG,false),BorderLayout.WEST);
-        goal.setPreferredSize(new Dimension(66,27));
-        goal.setFont(new Font(Font.DIALOG,Font.BOLD,13));
-        selector.add(goal,BorderLayout.EAST);
-        selector.setMaximumSize(new Dimension(Integer.MAX_VALUE,30));
         selector.setAlignmentX(Component.LEFT_ALIGNMENT);
-        goalCard.add(selector);goalCard.add(space(8));
-        progress.setForeground(GREEN);progress.setBackground(new Color(55,65,78));
-        progress.setBorderPainted(false);progress.setStringPainted(false);
-        progress.setMaximumSize(new Dimension(Integer.MAX_VALUE,9));
-        progress.setPreferredSize(new Dimension(160,9));
-        progress.setAlignmentX(Component.LEFT_ALIGNMENT);
-        goalCard.add(progress);goalCard.add(space(6));
-        goalCard.add(remaining);goalCard.add(space(8));
-        goalCard.add(header("ESTIMATED COMPLETION",ACCENT));goalCard.add(space(5));
-        goalCard.add(eta);goalCard.add(space(4));goalCard.add(duration);
-        goalCard.add(space(5));goalCard.add(status);
-        body.add(goalCard);body.add(space(8));
+        selector.setMaximumSize(new Dimension(Integer.MAX_VALUE,30));
+        selector.add(new Label("TARGET LEVEL",11,MUTED,true),BorderLayout.WEST);
+        goal.setFont(new Font(Font.DIALOG,Font.BOLD,13));
+        goal.setPreferredSize(new Dimension(65,28));
+        selector.add(goal,BorderLayout.EAST);
+        goalPanel.add(selector);
+        goalPanel.add(gap(7));
+        ring.setAlignmentX(Component.LEFT_ALIGNMENT);
+        goalPanel.add(ring);
+        goalPanel.add(gap(6));
+        goalPanel.add(remaining);
+        goalPanel.add(gap(12));
+        goalPanel.add(small("EXPECTED COMPLETION",CYAN));
+        goalPanel.add(gap(4));
+        goalPanel.add(forecast);
+        goalPanel.add(gap(4));
+        goalPanel.add(duration);
+        goalPanel.add(gap(7));
+        goalPanel.add(status);
+        addSection(content,goalPanel);
 
-        JPanel stats=card();
-        stats.add(header("COMBAT SKILLS",ACCENT));stats.add(space(8));
-        skillGrid.setOpaque(false);
-        skillGrid.setAlignmentX(Component.LEFT_ALIGNMENT);
-        skillGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE,165));
-        stats.add(skillGrid);
-        body.add(stats);body.add(space(8));
+        JPanel skillPanel=panel();
+        skillPanel.add(small("COMBAT PROFILE",CYAN));
+        skillPanel.add(gap(9));
+        skills.setOpaque(false);
+        skills.setAlignmentX(Component.LEFT_ALIGNMENT);
+        skills.setMaximumSize(new Dimension(Integer.MAX_VALUE,148));
+        skillPanel.add(skills);
+        addSection(content,skillPanel);
 
-        JButton nav=button("NAVIGATE TO MONSTER",navigate,true);
-        JButton reload=button("Refresh recommendation",refresh,false);
-        body.add(nav);body.add(space(6));body.add(reload);body.add(space(9));
+        JButton route=button("GUIDE ME TO TARGET  > ",navigate,true);
+        JButton reroll=button("Refresh recommendation",refresh,false);
+        content.add(route);content.add(gap(6));content.add(reroll);content.add(gap(10));
 
-        details.setLayout(new BoxLayout(details,BoxLayout.Y_AXIS));
-        details.setOpaque(false);
-        JPanel comparison=card();
-        comparison.add(header("YOUR TESTED MONSTERS",GOLD));comparison.add(space(5));
-        comparison.add(best);comparison.add(space(4));comparison.add(summary);
-        details.add(comparison);details.add(space(8));
-        JPanel estimate=card();
-        estimate.add(header("MODELLED TRAINING",ACCENT));estimate.add(space(5));
-        estimate.add(model);estimate.add(space(8));estimate.add(header("WHY THIS SPOT",GOLD));
-        estimate.add(space(5));estimate.add(why);estimate.add(space(6));estimate.add(requires);
-        details.add(estimate);
-        details.setVisible(false);
-        more.setAlignmentX(Component.LEFT_ALIGNMENT);
-        more.setMaximumSize(new Dimension(Integer.MAX_VALUE,30));
-        more.addActionListener(e -> {
-            details.setVisible(!details.isVisible());
-            more.setText(details.isVisible()?"Hide training details  ^":"Show training details  v");
-            body.revalidate();
+        drawer.setLayout(new BoxLayout(drawer,BoxLayout.Y_AXIS));
+        drawer.setOpaque(false);
+        JPanel detailsPanel=panel();
+        detailsPanel.add(small("MEASURED TRAINING",GOLD));
+        detailsPanel.add(gap(6));detailsPanel.add(best);
+        detailsPanel.add(gap(5));detailsPanel.add(comparison);
+        detailsPanel.add(gap(12));detailsPanel.add(small("THEORETICAL COMPARISON",CYAN));
+        detailsPanel.add(gap(5));detailsPanel.add(predicted);
+        detailsPanel.add(gap(12));detailsPanel.add(small("RECOMMENDATION NOTES",CYAN));
+        detailsPanel.add(gap(5));detailsPanel.add(why);
+        detailsPanel.add(gap(4));detailsPanel.add(access);
+        drawer.add(detailsPanel);
+        drawer.setVisible(false);
+        drawerButton.setFont(new Font(Font.DIALOG,Font.BOLD,11));
+        drawerButton.setForeground(CYAN);
+        drawerButton.setBackground(PANEL);
+        drawerButton.setFocusPainted(false);
+        drawerButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        drawerButton.setMaximumSize(new Dimension(Integer.MAX_VALUE,30));
+        drawerButton.addActionListener(e-> {
+            drawer.setVisible(!drawer.isVisible());
+            drawerButton.setText(drawer.isVisible()?"TRAINING ANALYSIS  -":"TRAINING ANALYSIS  +");
+            content.revalidate();
         });
-        body.add(more);body.add(space(7));body.add(details);
+        content.add(drawerButton);content.add(gap(7));content.add(drawer);
 
-        JScrollPane scroller=new JScrollPane(body);
-        scroller.setBorder(null);
-        scroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scroller.getVerticalScrollBar().setUnitIncrement(16);
-        scroller.setViewportView(body);
-        // Keep content bounded; do not rely on fragile per-label width hacks.
-        add(scroller,BorderLayout.CENTER);
+        JScrollPane scroll=new JScrollPane(content);
+        scroll.setBorder(null);
+        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.getVerticalScrollBar().setUnitIncrement(18);
+        add(scroll,BorderLayout.CENTER);
 
-        goal.addChangeListener(e -> {updateGoal();if(goalChanged!=null)goalChanged.actionPerformed(null);});
-        animate=new Timer(80,e -> {
-            if(Math.abs(visualProgress-wantedProgress)<.001) return;
-            visualProgress+=(wantedProgress-visualProgress)*.22;
-            progress.setValue((int)Math.round(visualProgress*1000));
+        goal.addChangeListener(e -> {
+            if (updatingGoal) return;
+            updateGoal();
+            if(goalChanged!=null)goalChanged.actionPerformed(null);
         });
-        animate.start();
+
+        animations=new javax.swing.Timer(90,e -> {
+            boolean visible=isShowing();
+            if (!visible) return;
+            ring.animate(System.currentTimeMillis()<celebrateUntil);
+        });
+        animations.start();
+        clear();
     }
 
     private static final class ScrollBody extends JPanel implements Scrollable {
         public Dimension getPreferredScrollableViewportSize(){return getPreferredSize();}
-        public int getScrollableUnitIncrement(Rectangle r,int o,int d){return 16;}
-        public int getScrollableBlockIncrement(Rectangle r,int o,int d){return Math.max(32,r.height-32);}
+        public int getScrollableUnitIncrement(Rectangle r,int orientation,int direction){return 18;}
+        public int getScrollableBlockIncrement(Rectangle r,int orientation,int direction){return Math.max(80,r.height-40);}
         public boolean getScrollableTracksViewportWidth(){return true;}
         public boolean getScrollableTracksViewportHeight(){return false;}
     }
-    private static JPanel card() {
-        JPanel x=new JPanel();x.setLayout(new BoxLayout(x,BoxLayout.Y_AXIS));
-        x.setBackground(CARD);x.setBorder(new EmptyBorder(11,10,11,10));
-        x.setAlignmentX(Component.LEFT_ALIGNMENT);
-        x.setMaximumSize(new Dimension(Integer.MAX_VALUE,Integer.MAX_VALUE));
-        return x;
+
+    private static final class Label extends JTextArea {
+        Label(String s,int size,Color color,boolean bold) {
+            super(s);
+            setEditable(false);setFocusable(false);setOpaque(false);
+            setLineWrap(true);setWrapStyleWord(true);setBorder(null);
+            setColumns(1);setAlignmentX(Component.LEFT_ALIGNMENT);
+            setForeground(color);
+            setFont(new Font(Font.DIALOG,bold?Font.BOLD:Font.PLAIN,size));
+        }
+        void value(String s) {setText(s==null?"":s);revalidate();}
     }
-    private static JLabel text(String s,int sz,Color color,boolean bold) {
-        JLabel l=new JLabel(s);l.setForeground(color);
-        l.setFont(new Font(Font.DIALOG,bold?Font.BOLD:Font.PLAIN,sz));
-        l.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return l;
+
+    private static final class Ring extends JComponent {
+        private double shown=0,target=0;
+        private float shimmer=0;
+        private boolean reducedMotion=false;
+        Ring(){setPreferredSize(new Dimension(170,126));setMaximumSize(new Dimension(Integer.MAX_VALUE,126));}
+        void setTarget(double value) { target=Math.max(0,Math.min(1,value));repaint(); }
+        void animate(boolean celebration) {
+            if (reducedMotion)shown=target;
+            else shown+=(target-shown)*0.15;
+            shimmer+=celebration?0.2f:0.028f;
+            repaint();
+        }
+        @Override protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            Graphics2D g=(Graphics2D)graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+            int cx=getWidth()/2,cy=60,r=43;
+            g.setStroke(new BasicStroke(10,BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
+            g.setColor(new Color(54,69,79));
+            g.draw(new Arc2D.Double(cx-r,cy-r,r*2,r*2,0,360,Arc2D.OPEN));
+            float alpha=(float)(0.75+0.25*Math.sin(shimmer));
+            g.setColor(new Color(101,235,171,Math.max(0,Math.min(255,(int)(alpha*255)))));
+            g.draw(new Arc2D.Double(cx-r,cy-r,r*2,r*2,90,-360*shown,Arc2D.OPEN));
+            g.setFont(new Font(Font.DIALOG,Font.BOLD,21));
+            String pct=String.format(Locale.US,"%.1f%%",shown*100);
+            FontMetrics fm=g.getFontMetrics();g.setColor(LIGHT);
+            g.drawString(pct,cx-fm.stringWidth(pct)/2,cy+7);
+            g.setFont(new Font(Font.DIALOG,Font.PLAIN,10));
+            g.setColor(MUTED);
+            String msg="GOAL PROGRESS";
+            FontMetrics sfm=g.getFontMetrics();
+            g.drawString(msg,cx-sfm.stringWidth(msg)/2,cy+63);
+            g.dispose();
+        }
     }
-    private static JLabel header(String s,Color c){return text(s,10,c,true);}
-    private static Component space(int px){return Box.createVerticalStrut(px);}
-    private static JButton button(String s,ActionListener a,boolean primary) {
-        JButton b=new JButton(s);b.addActionListener(a);
-        b.setFocusPainted(false);b.setForeground(FG);
-        b.setFont(new Font(Font.DIALOG,Font.BOLD,12));
-        b.setBackground(primary?new Color(29,110,129):CARD);
+
+    private static JPanel panel() {
+        JPanel p=new JPanel();p.setLayout(new BoxLayout(p,BoxLayout.Y_AXIS));
+        p.setBackground(PANEL);p.setBorder(new EmptyBorder(12,11,12,11));
+        p.setAlignmentX(Component.LEFT_ALIGNMENT);
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE,Integer.MAX_VALUE));
+        return p;
+    }
+    private static Label small(String s,Color color){return new Label(s,10,color,true);}
+    private static Component gap(int px){return Box.createVerticalStrut(px);}
+    private static void addSection(JPanel parent,JPanel section){parent.add(section);parent.add(gap(9));}
+    private static JButton button(String text,ActionListener fn,boolean primary) {
+        JButton b=new JButton(text);b.addActionListener(fn);
+        b.setForeground(LIGHT);b.setBackground(primary?new Color(30,115,135):PANEL);
+        b.setFocusPainted(false);b.setFont(new Font(Font.DIALOG,Font.BOLD,12));
         b.setAlignmentX(Component.LEFT_ALIGNMENT);
         b.setMaximumSize(new Dimension(Integer.MAX_VALUE,33));
         return b;
     }
-    private static String html(String value,int width) {
-        String s=value==null?"":value;
-        s=s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;");
-        return "<html><div style='width:"+width+"px;'>"+
-            s.replace("\n","<br>")+"</div></html>";
+    private void tile(String name,int number,boolean active) {
+        JPanel cell=new JPanel(new BorderLayout());
+        cell.setBackground(active?new Color(27,99,77):new Color(49,61,73));
+        cell.setBorder(new EmptyBorder(5,5,5,5));
+        JLabel title=new JLabel(name),value=new JLabel(Integer.toString(number));
+        title.setForeground(active?GREEN:MUTED);
+        title.setFont(new Font(Font.DIALOG,Font.BOLD,10));
+        value.setForeground(LIGHT);value.setFont(new Font(Font.DIALOG,Font.BOLD,17));
+        cell.add(title,BorderLayout.NORTH);cell.add(value,BorderLayout.CENTER);
+        skills.add(cell);
     }
-    private static void wrap(JLabel label,String value){label.setText(html(value,154));}
-    private void tile(String key,int val,boolean active) {
-        JPanel t=new JPanel(new BorderLayout());
-        t.setBackground(active?new Color(29,107,86):new Color(51,60,73));
-        t.setBorder(new EmptyBorder(6,5,6,5));
-        t.add(text(key,10,active?GREEN:MUTED,true),BorderLayout.NORTH);
-        t.add(text(Integer.toString(val),17,FG,true),BorderLayout.CENTER);
-        skillGrid.add(t);
-    }
-
-    void showRecommendation(String trainingSkill,int level,TrainingSpot spot,
-                            CombatLoadout gear,String rateText,String predicted) {
-        training.setText(trainingSkill+"  |  Level "+level);
-        wrap(monster,spot.name);
-        currentLevel=level;
-        skillGrid.removeAll();
+    void showRecommendation(String trainingSkill,int levelNow,TrainingSpot spot,
+                            CombatLoadout gear,String ignoredRateText,String modelText) {
+        headline.value(trainingSkill.toUpperCase(Locale.US));
+        level.value("LEVEL "+levelNow);
+        recommended.value(spot.name);
+        if(previousLevel>=0 && levelNow>previousLevel)celebrateUntil=System.currentTimeMillis()+2000;
+        previousLevel=levelNow;
+        currentLevel=levelNow;
+        skills.removeAll();
         tile("ATK",gear.attack,trainingSkill.equalsIgnoreCase("Attack"));
         tile("STR",gear.strength,trainingSkill.equalsIgnoreCase("Strength"));
         tile("DEF",gear.defence,trainingSkill.equalsIgnoreCase("Defence"));
@@ -192,56 +255,59 @@ final class CombatCoachPanel extends PluginPanel {
         tile("MAG",gear.magic,trainingSkill.equalsIgnoreCase("Magic"));
         tile("PRAY",gear.prayer,false);
         int g=((Number)goal.getValue()).intValue();
-        if(g<=level && level<99)goal.setValue(level+1);
-        String desc=spot.reason;
-        if(desc.startsWith("Gear: ")){
-            int cut=desc.indexOf(". ");
-            if(cut>=0)desc=desc.substring(cut+2);
+        if(g<=levelNow && levelNow<99){
+            updatingGoal=true;goal.setValue(levelNow+1);updatingGoal=false;
         }
-        wrap(why,desc);
-        wrap(requires,spot.requirements);
-        String pred=predicted==null?"":predicted;
-        int cut=pred.indexOf("Estimates assume");
-        if(cut>=0)pred=pred.substring(0,cut).trim();
-        wrap(model,pred.replace("Highest modelled: ","Best modelled: "));
-        updateGoal();
-        skillGrid.revalidate();
-        revalidate();
+        String note=spot.reason;
+        if(note.startsWith("Gear: ")){
+            int cut=note.indexOf(". ");
+            if(cut>=0)note=note.substring(cut+2);
+        }
+        why.value(note);access.value(spot.requirements);
+        String modelSummary=modelText==null?"":modelText;
+        int end=modelSummary.indexOf("Estimates assume");
+        if(end>=0)modelSummary=modelSummary.substring(0,end).trim();
+        predicted.value(modelSummary.replace("Highest modelled: ","Model best: "));
+        skills.revalidate();updateGoal();revalidate();
     }
-    void updateProgress(int xp,long rate,String bestMonster,String comparisons) {
+    void updateProgress(int xp,long rate,String bestMonster,String comparisonText) {
         currentXp=xp;currentRate=rate;
-        wrap(best,bestMonster);
-        wrap(summary,comparisons==null?"":comparisons.replace("; ","\n"));
+        best.value(bestMonster);
+        comparison.value(comparisonText==null?"":comparisonText.replace("; ","\n"));
         updateGoal();
     }
     private void updateGoal() {
-        int g=((Number)goal.getValue()).intValue();
-        if(g<=currentLevel){remaining.setText("Goal reached");wrap(eta,"Choose a higher level");wrap(duration,"");wantedProgress=1;return;}
-        int start=xpForLevel(currentLevel),end=xpForLevel(g);
-        long needed=Math.max(0L,(long)end-currentXp);
-        remaining.setText(String.format(Locale.US,"%,d XP left",needed));
-        wantedProgress=Math.max(0,Math.min(1,(currentXp-start)/(double)Math.max(1,end-start)));
-        if(currentRate<=0 || currentXp<=0){
-            wrap(eta,"Waiting for combat data");wrap(duration,"");
-            status.setText("CALIBRATING");return;
+        int targetLevel=((Number)goal.getValue()).intValue();
+        if(targetLevel<=currentLevel){
+            remaining.value("Goal reached");forecast.value("Choose a higher goal");
+            duration.value("");status.value("COMPLETE");ring.setTarget(1);
+            return;
         }
-        // Preserve the working observed-XP time calculation.
-        long seconds=(long)Math.ceil(needed*3600.0/currentRate);
+        int begin=xpForLevel(currentLevel),end=xpForLevel(targetLevel);
+        long left=Math.max(0L,(long)end-currentXp);
+        remaining.value(String.format(Locale.US,"%,d XP remaining",left));
+        ring.setTarget(Math.max(0,Math.min(1,(currentXp-begin)/(double)Math.max(1,end-begin))));
+        if(currentXp<=0 || currentRate<=0){
+            forecast.value("Waiting for training data");
+            duration.value("");status.value("CALIBRATING");return;
+        }
+        long seconds=(long)Math.ceil(left*3600.0/currentRate);
         ZonedDateTime finish=ZonedDateTime.now(ZoneId.systemDefault()).plusSeconds(seconds);
-        wrap(eta,finish.format(DateTimeFormatter.ofPattern("MMM d, uuuu  h:mm a",Locale.US)));
-        long days=seconds/86400,hours=(seconds%86400)/3600,mins=(seconds%3600)/60;
-        wrap(duration,"In "+(days>0?days+"d ":"")+(hours>0?hours+"h ":"")+mins+"m");
-        status.setText("LIVE ETA");
+        forecast.value(finish.format(DateTimeFormatter.ofPattern("MMM d, uuuu  h:mm a",Locale.US)));
+        long days=seconds/86400,hours=(seconds%86400)/3600,minutes=(seconds%3600)/60;
+        duration.value("Approx. "+(days>0?days+" days ":"")+(hours>0?hours+" hr ":"")+minutes+" min left");
+        status.value("LIVE FORECAST");
     }
-    private static int xpForLevel(int l) {
-        int sum=0;for(int i=1;i<l;i++)sum+=(int)Math.floor(i+300*Math.pow(2,i/7.0));
+    private static int xpForLevel(int level) {
+        int sum=0;
+        for(int i=1;i<level;i++)sum+=(int)Math.floor(i+300*Math.pow(2,i/7.0));
         return sum/4;
     }
-    void clear(){
-        training.setText("Waiting for game");
-        monster.setText("-");eta.setText("Waiting for combat");
-        duration.setText("");remaining.setText("Waiting for XP");
-        best.setText("No measured results yet");summary.setText("");
-        skillGrid.removeAll();wantedProgress=0;
+    void clear() {
+        headline.value("WAITING");level.value("LEVEL --");
+        recommended.value("Log in to begin");forecast.value("Waiting for game");
+        duration.value("");remaining.value("Waiting for XP");
+        status.value("IDLE");skills.removeAll();ring.setTarget(0);
+        best.value("");comparison.value("");predicted.value("");why.value("");access.value("");
     }
 }
