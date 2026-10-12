@@ -116,10 +116,20 @@ public class CombatCoachPlugin extends Plugin {
         }
     }
     @Subscribe public void onItemContainerChanged(ItemContainerChanged event) {
-        if (ready && event.getContainerId() == net.runelite.api.InventoryID.EQUIPMENT.getId()) refresh();
+        if (ready && event.getContainerId() == net.runelite.api.InventoryID.EQUIPMENT.getId()) {
+            spotTracker.reset();
+            xpTracker.reset();
+            refresh();
+        }
     }
     @Subscribe public void onConfigChanged(ConfigChanged event) {
-        if ("combatcoach".equals(event.getGroup())) clientThread.invoke(this::refresh);
+        if ("combatcoach".equals(event.getGroup())) {
+            if ("focus".equals(event.getKey()) || "members".equals(event.getKey())) {
+                spotTracker.reset();
+                xpTracker.reset();
+            }
+            clientThread.invoke(this::refresh);
+        }
     }
     private static boolean combatSkill(Skill s) {
         return s==Skill.ATTACK || s==Skill.STRENGTH || s==Skill.DEFENCE || s==Skill.RANGED || s==Skill.MAGIC || s==Skill.HITPOINTS;
