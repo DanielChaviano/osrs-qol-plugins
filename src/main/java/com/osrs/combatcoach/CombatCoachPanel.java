@@ -38,9 +38,9 @@ final class CombatCoachPanel extends PluginPanel {
     private final Ring ring=new Ring();
     private final JPanel skills=new JPanel(new GridLayout(0,3,5,5));
     private final JPanel drawer=new JPanel();
-    private final JLabel currentXpText=new Label("0",12,LIGHT,true);
-    private final JLabel targetXpText=new Label("0",12,LIGHT,true);
-    private final JLabel remainingXpText=new Label("0",12,LIGHT,true);
+    private final Label currentXpText=new Label("0",12,LIGHT,true);
+    private final Label targetXpText=new Label("0",12,LIGHT,true);
+    private final Label remainingXpText=new Label("0",12,LIGHT,true);
     private final JButton drawerButton=new JButton("TRAINING ANALYSIS  +");
     private final javax.swing.Timer animations;
     private int currentLevel=1,currentXp=0,previousLevel=-1;
