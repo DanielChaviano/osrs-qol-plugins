@@ -38,6 +38,13 @@ final class CombatCoachPanel extends PluginPanel {
     private final Ring ring=new Ring();
     private final JPanel skills=new JPanel(new GridLayout(0,3,5,5));
     private final JPanel drawer=new JPanel();
+    private final JPanel trainingPage=new JPanel();
+    private final JPanel analysisPage=new JPanel();
+    private final JPanel settingsPage=new JPanel();
+    private final JLabel currentXpText=new Label("0",12,LIGHT,true);
+    private final JLabel targetXpText=new Label("0",12,LIGHT,true);
+    private final JLabel remainingXpText=new Label("0",12,LIGHT,true);
+    private final JPanel forecastCard=new JPanel();
     private final JButton drawerButton=new JButton("TRAINING ANALYSIS  +");
     private final javax.swing.Timer animations;
     private int currentLevel=1,currentXp=0,previousLevel=-1;
@@ -54,7 +61,10 @@ final class CombatCoachPanel extends PluginPanel {
         content.setBorder(new EmptyBorder(10,8,15,8));
 
         JPanel banner=panel();
-        banner.setBackground(new Color(22,43,54));
+        banner.setBackground(new Color(18,51,69));
+        banner.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(47,112,140),1,true),
+            new EmptyBorder(12,11,12,11)));
         banner.add(small("COMBAT COACH  /  LIVE",CYAN));
         banner.add(gap(7));
         banner.add(headline);
@@ -91,6 +101,9 @@ final class CombatCoachPanel extends PluginPanel {
         goalPanel.add(duration);
         goalPanel.add(gap(7));
         goalPanel.add(status);
+        goalPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(56,109,123),1,true),
+            new EmptyBorder(12,11,12,11)));
         addSection(content,goalPanel);
 
         JPanel skillPanel=panel();
@@ -131,6 +144,12 @@ final class CombatCoachPanel extends PluginPanel {
             content.revalidate();
         });
         content.add(drawerButton);content.add(gap(7));content.add(drawer);
+        JPanel xpRows=panel();
+        xpRows.add(small("GOAL BREAKDOWN",CYAN));xpRows.add(gap(7));
+        xpRows.add(small("CURRENT XP",MUTED));xpRows.add(currentXpText);xpRows.add(gap(5));
+        xpRows.add(small("TARGET XP",MUTED));xpRows.add(targetXpText);xpRows.add(gap(5));
+        xpRows.add(small("REMAINING",MUTED));xpRows.add(remainingXpText);
+        content.add(gap(8));content.add(xpRows);
 
         JScrollPane scroll=new JScrollPane(content);
         scroll.setBorder(null);
@@ -229,7 +248,11 @@ final class CombatCoachPanel extends PluginPanel {
     private static void addSection(JPanel parent,JPanel section){parent.add(section);parent.add(gap(9));}
     private static JButton button(String text,ActionListener fn,boolean primary) {
         JButton b=new JButton(text);b.addActionListener(fn);
-        b.setForeground(LIGHT);b.setBackground(primary?new Color(30,115,135):PANEL);
+        b.setForeground(primary?new Color(16,24,27):LIGHT);
+        b.setBackground(primary?new Color(105,221,168):PANEL);
+        if (primary) b.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(170,247,204),1,true),
+            new EmptyBorder(5,6,5,6)));
         b.setFocusPainted(false);b.setFont(new Font(Font.DIALOG,Font.BOLD,12));
         b.setAlignmentX(Component.LEFT_ALIGNMENT);
         b.setMaximumSize(new Dimension(Integer.MAX_VALUE,33));
@@ -293,6 +316,9 @@ final class CombatCoachPanel extends PluginPanel {
         }
         int begin=xpForLevel(currentLevel),end=xpForLevel(targetLevel);
         long left=Math.max(0L,(long)end-currentXp);
+        currentXpText.setText(String.format(Locale.US,"%,d",currentXp));
+        targetXpText.setText(String.format(Locale.US,"%,d",end));
+        remainingXpText.setText(String.format(Locale.US,"%,d",left));
         remaining.value(String.format(Locale.US,"%,d XP remaining",left));
         ring.setTarget(Math.max(0,Math.min(1,(currentXp-begin)/(double)Math.max(1,end-begin))));
         if(currentXp<=0 || currentRate<=0){
