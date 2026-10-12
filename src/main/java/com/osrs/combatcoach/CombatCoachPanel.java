@@ -38,13 +38,9 @@ final class CombatCoachPanel extends PluginPanel {
     private final Ring ring=new Ring();
     private final JPanel skills=new JPanel(new GridLayout(0,3,5,5));
     private final JPanel drawer=new JPanel();
-    private final JPanel trainingPage=new JPanel();
-    private final JPanel analysisPage=new JPanel();
-    private final JPanel settingsPage=new JPanel();
     private final JLabel currentXpText=new Label("0",12,LIGHT,true);
     private final JLabel targetXpText=new Label("0",12,LIGHT,true);
     private final JLabel remainingXpText=new Label("0",12,LIGHT,true);
-    private final JPanel forecastCard=new JPanel();
     private final JButton drawerButton=new JButton("TRAINING ANALYSIS  +");
     private final javax.swing.Timer animations;
     private int currentLevel=1,currentXp=0,previousLevel=-1;
@@ -236,9 +232,20 @@ final class CombatCoachPanel extends PluginPanel {
         }
     }
 
+    private static final class GradientPanel extends JPanel {
+        @Override protected void paintComponent(Graphics graphics) {
+            Graphics2D g=(Graphics2D)graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setPaint(new GradientPaint(0,0,new Color(38,55,70),0,Math.max(100,getHeight()),new Color(24,32,44)));
+            g.fillRoundRect(0,0,getWidth()-1,getHeight()-1,13,13);
+            g.setColor(new Color(65,91,106,150));
+            g.drawRoundRect(0,0,getWidth()-1,getHeight()-1,13,13);
+            g.dispose();
+        }
+    }
     private static JPanel panel() {
-        JPanel p=new JPanel();p.setLayout(new BoxLayout(p,BoxLayout.Y_AXIS));
-        p.setBackground(PANEL);p.setBorder(new EmptyBorder(12,11,12,11));
+        JPanel p=new GradientPanel();p.setLayout(new BoxLayout(p,BoxLayout.Y_AXIS));
+        p.setOpaque(false);p.setBorder(new EmptyBorder(12,11,12,11));
         p.setAlignmentX(Component.LEFT_ALIGNMENT);
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE,Integer.MAX_VALUE));
         return p;
