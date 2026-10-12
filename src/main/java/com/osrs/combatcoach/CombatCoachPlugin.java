@@ -160,7 +160,8 @@ public class CombatCoachPlugin extends Plugin {
             destination.setName("Combat Coach: " + next.name);
             mapPoints.add(destination);
         }
-        SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next,loadout,rateFor(chosen)); });
+        SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next,loadout,rateFor(chosen),
+            CombatXpEstimator.compare(chosen,loadout,config.members())); });
     }
     private String rateFor(Skill chosen) {
         long rate = xpTracker.rate(System.currentTimeMillis());
