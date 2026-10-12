@@ -149,8 +149,16 @@ final class CombatCoachPanel extends PluginPanel {
             if (!visible) return;
             ring.animate(System.currentTimeMillis()<celebrateUntil);
         });
-        animations.start();
         clear();
+    }
+
+    @Override public void addNotify() {
+        super.addNotify();
+        animations.start();
+    }
+    @Override public void removeNotify() {
+        animations.stop();
+        super.removeNotify();
     }
 
     private static final class ScrollBody extends JPanel implements Scrollable {
