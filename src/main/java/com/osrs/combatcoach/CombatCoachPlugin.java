@@ -3,6 +3,8 @@ package com.osrs.combatcoach;
 import com.google.inject.Provides;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
@@ -13,6 +15,8 @@ import net.runelite.api.events.StatChanged;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.eventbus.EventBus;
+import net.runelite.client.events.PluginMessage;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -27,6 +31,7 @@ public class CombatCoachPlugin extends Plugin {
     @Inject private Client client;
     @Inject private ClientThread clientThread;
     @Inject private ClientToolbar toolbar;
+    @Inject private EventBus eventBus;
     @Inject private WorldMapPointManager mapPoints;
     @Inject private CombatCoachConfig config;
     private CombatCoachPanel panel;
@@ -41,7 +46,8 @@ public class CombatCoachPlugin extends Plugin {
     @Provides CombatCoachConfig provideConfig(ConfigManager manager) { return manager.getConfig(CombatCoachConfig.class); }
 
     @Override protected void startUp() {
-        panel = new CombatCoachPanel(e -> clientThread.invoke(this::refresh));
+        panel = new CombatCoachPanel(e -> clientThread.invoke(this::refresh),
+            e -> clientThread.invoke(this::navigateToRecommendation));
         button = NavigationButton.builder().tooltip("Combat Coach").priority(7).panel(panel)
             .icon(ImageUtil.resizeImage(PIN, 24, 24)).build();
         toolbar.addNavigation(button);
@@ -104,6 +110,25 @@ public class CombatCoachPlugin extends Plugin {
             mapPoints.add(destination);
         }
         SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next); });
+    }
+    private void navigateToRecommendation() {
+        if (!ready || currentSpot == null || client.getLocalPlayer() == null) return;
+        Map<String, Object> data = new HashMap<>();
+        data.put("start", client.getLocalPlayer().getWorldLocation());
+        data.put("target", currentSpot.point);
+        // Disable member-only transport methods when configured as F2P.
+        // This does NOT make the underlying terrain graph F2P-only.
+        if (!config.members()) {
+            Map<String, Object> options = new HashMap<>();
+            for (String key : new String[]{"useAgilityShortcuts", "useGrappleShortcuts", "useFairyRings",
+                    "useGnomeGliders", "useCharterShips", "useMinecarts", "useQuetzals",
+                    "useSpiritTrees", "useTeleportationItems", "useTeleportationLevers",
+                    "useTeleportationPortals", "useTeleportationSpells", "useWildernessObelisks"}) {
+                options.put(key, key.equals("useTeleportationItems") ? "None" : false);
+            }
+            data.put("config", options);
+        }
+        eventBus.post(new PluginMessage("shortestpath", "path", data));
     }
     private void clearMarker() { if (destination != null) { mapPoints.remove(destination); destination=null; } }
     private static BufferedImage makePin() {
