@@ -45,6 +45,8 @@ public class CombatCoachPlugin extends Plugin {
     private long lastSkillGain = 0;
     private boolean ready;
     private final CombatXpTracker xpTracker = new CombatXpTracker();
+    private final CombatSpotTracker spotTracker = new CombatSpotTracker();
+    private String currentNpcName = null;
     private int currentXp = 0;
     private Skill measuredSkill;
     private int sessionStartXp = -1;
@@ -71,7 +73,7 @@ public class CombatCoachPlugin extends Plugin {
     @Subscribe public void onGameStateChanged(GameStateChanged event) {
         ready = event.getGameState() == GameState.LOGGED_IN;
         if (!ready) { clearMarker(); if (panel != null) SwingUtilities.invokeLater(() -> panel.clear()); }
-        else { measuredSkill=null; sessionStartXp=-1; recentXp=-1; xpTracker.reset(); refresh(); }
+        else { measuredSkill=null; sessionStartXp=-1; recentXp=-1; xpTracker.reset(); spotTracker.reset(); currentNpcName=null; refresh(); }
     }
     @Subscribe public void onStatChanged(StatChanged event) {
         Skill s=event.getSkill();
@@ -84,6 +86,7 @@ public class CombatCoachPlugin extends Plugin {
         if (s == Skill.HITPOINTS) return;
         if (s == selectedSkill() || config.focus() == CombatCoachConfig.Focus.AUTO) {
             xpTracker.addXp(s, xp-oldXp, System.currentTimeMillis());
+            spotTracker.gain(xp-oldXp, System.currentTimeMillis());
         }
         active=s;
         if (measuredSkill != s || sessionStartXp < 0) {
@@ -101,12 +104,15 @@ public class CombatCoachPlugin extends Plugin {
         Skill chosen=selectedSkill();
         xpTracker.select(chosen);
         if (client.getLocalPlayer().getInteracting() instanceof net.runelite.api.NPC) {
+            net.runelite.api.NPC npc=(net.runelite.api.NPC)client.getLocalPlayer().getInteracting();
+            currentNpcName=npc.getName();
             xpTracker.observeCombat(chosen,System.currentTimeMillis());
+            spotTracker.fighting(currentNpcName,System.currentTimeMillis());
         }
         if (client.getTickCount()%2==0) {
             int xp=client.getSkillExperience(chosen);
             long rate=xpTracker.rate(System.currentTimeMillis());
-            SwingUtilities.invokeLater(() -> { if (panel!=null) panel.updateProgress(xp,rate); });
+            SwingUtilities.invokeLater(() -> { if (panel!=null) panel.updateProgress(xp,rate,spotTracker.best(),spotTracker.summary()); });
         }
     }
     @Subscribe public void onItemContainerChanged(ItemContainerChanged event) {
