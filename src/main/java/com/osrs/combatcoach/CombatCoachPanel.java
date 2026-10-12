@@ -18,7 +18,8 @@ final class CombatCoachPanel extends PluginPanel {
     private static final Color CYAN = new Color(93, 213, 240);
     private static final Color GREEN = new Color(112, 220, 156);
     private static final Color YELLOW = new Color(255, 205, 107);
-    private static final int TEXT_WIDTH = 165;
+    private int textWidth = 140;
+    private final java.util.List<JTextArea> fittedAreas = new java.util.ArrayList<>();
 
     private final JLabel skill = label("Log in for recommendations", 14, WHITE, true);
     private final JTextArea target = emphasis("Waiting for game...", 16, GREEN);
@@ -158,6 +159,16 @@ final class CombatCoachPanel extends PluginPanel {
         scroller.setBorder(null);
         scroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroller.getVerticalScrollBar().setUnitIncrement(16);
+        scroller.getViewport().addChangeListener(e -> {
+            int width = scroller.getViewport().getExtentSize().width;
+            if (width <= 0) return;
+            int available = Math.max(92, width - 42);
+            if (available != textWidth) {
+                textWidth = available;
+                for (JTextArea area : fittedAreas) resizeArea(area);
+                contents.revalidate();
+            }
+        });
         add(scroller, BorderLayout.CENTER);
     }
 
@@ -205,17 +216,26 @@ final class CombatCoachPanel extends PluginPanel {
         return a;
     }
 
-    private static void fit(JTextArea area, String content) {
-        area.setText(content == null ? "" : content);
-        area.setSize(TEXT_WIDTH, Short.MAX_VALUE);
-        int height=Math.max(area.getPreferredSize().height, area.getFontMetrics(area.getFont()).getHeight()+2);
-        Dimension size=new Dimension(TEXT_WIDTH, height);
-        area.setPreferredSize(size);
-        area.setMinimumSize(size);
-        area.setMaximumSize(size);
+    private void fit(JTextArea area, String content) {
+        String value=content == null ? "" : content;
+        if (!value.equals(area.getText())) area.setText(value);
+        if (!fittedAreas.contains(area)) fittedAreas.add(area);
+        resizeArea(area);
     }
 
-    private static Component gap(int pixels) {
+    private void resizeArea(JTextArea area) {
+        int width=textWidth;
+        // Measure using the exact available width; zero-height text areas are hidden.
+        area.setSize(width, Short.MAX_VALUE);
+        int height=area.getText().isEmpty() ? 0 :
+            Math.max(area.getFontMetrics(area.getFont()).getHeight()+3,area.getPreferredSize().height+3);
+        Dimension d=new Dimension(width,height);
+        area.setPreferredSize(d);
+        area.setMinimumSize(d);
+        area.setMaximumSize(d);
+    }
+
+        private static Component gap(int pixels) {
         return Box.createVerticalStrut(pixels);
     }
 
@@ -308,13 +328,13 @@ final class CombatCoachPanel extends PluginPanel {
         java.time.ZonedDateTime finish=java.time.ZonedDateTime.now(ZoneId.systemDefault()).plusSeconds(seconds);
         String when=DateTimeFormatter.ofPattern("EEE, MMM d, uuuu 'at' h:mm a",
             java.util.Locale.US).format(finish);
-        fit(eta,"Estimated: " + when);
+        fit(eta,"Estimated completion:\n" + when);
         long days=seconds/86400L;
         long hours=(seconds%86400L)/3600L;
         long minutes=(seconds%3600L)/60L;
         String timeLeft=(days>0 ? days+" days, " : "")+
             (hours>0 ? hours+" hours, " : "")+minutes+" min";
-        fit(duration,"Time remaining: " + timeLeft);
+        fit(duration,"Remaining: " + timeLeft);
     }
 
         private static int xpForLevel(int level) {
@@ -325,15 +345,15 @@ final class CombatCoachPanel extends PluginPanel {
 
     void clear() {
         skill.setText("Log in for recommendations");
-        target.setText("Waiting for game...");
-        rate.setText("Waiting for combat XP");
-        measuredBest.setText("No measured winner yet");
-        measuredCompare.setText("");
-        modelCompare.setText("");
+        fit(target,"Waiting for game...");
+        fit(rate,"Waiting for combat XP");
+        fit(measuredBest,"No measured winner yet");
+        fit(measuredCompare,"");
+        fit(modelCompare,"");
         statsA.setText("-");
         statsB.setText("-");
         statsC.setText("-");
-        reason.setText("");
-        access.setText("");
+        fit(reason,"");
+        fit(access,"");
     }
 }
