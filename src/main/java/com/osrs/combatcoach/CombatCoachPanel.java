@@ -146,6 +146,39 @@ final class CombatCoachPanel extends PluginPanel {
         xpRows.add(small("TARGET XP",MUTED));xpRows.add(targetXpText);xpRows.add(gap(5));
         xpRows.add(small("REMAINING",MUTED));xpRows.add(remainingXpText);
         content.add(gap(8));content.add(xpRows);
+        xpRows.setVisible(false);
+        JPanel tabs=new JPanel(new GridLayout(1,2,5,0));
+        tabs.setOpaque(false);
+        tabs.setAlignmentX(Component.LEFT_ALIGNMENT);
+        tabs.setMaximumSize(new Dimension(Integer.MAX_VALUE,33));
+        JButton trainingTab=tab("TRAINING",true);
+        JButton analysisTab=tab("ANALYSIS",false);
+        tabs.add(trainingTab);tabs.add(analysisTab);
+        content.add(tabs,0);
+        content.add(gap(9),1);
+
+        // The same real data model backs both views. No fake settings or mock elements.
+        Runnable showTraining=()->{
+            banner.setVisible(true);goalPanel.setVisible(true);skillPanel.setVisible(true);
+            route.setVisible(true);reroll.setVisible(true);
+            drawerButton.setVisible(false);drawer.setVisible(false);
+            xpRows.setVisible(false);
+            trainingTab.setBackground(new Color(30,115,135));
+            analysisTab.setBackground(PANEL);
+            content.revalidate();content.repaint();
+        };
+        Runnable showAnalysis=()->{
+            banner.setVisible(false);goalPanel.setVisible(false);skillPanel.setVisible(false);
+            route.setVisible(false);reroll.setVisible(false);
+            drawerButton.setVisible(false);drawer.setVisible(true);
+            xpRows.setVisible(true);
+            trainingTab.setBackground(PANEL);
+            analysisTab.setBackground(new Color(30,115,135));
+            content.revalidate();content.repaint();
+        };
+        trainingTab.addActionListener(e->showTraining.run());
+        analysisTab.addActionListener(e->showAnalysis.run());
+        showTraining.run();
 
         JScrollPane scroll=new JScrollPane(content);
         scroll.setBorder(null);
@@ -198,10 +231,12 @@ final class CombatCoachPanel extends PluginPanel {
 
     private static final class Ring extends JComponent {
         private double shown=0,target=0;
+        private int targetLevel=20;
         private float shimmer=0;
         private boolean reducedMotion=false;
         Ring(){setPreferredSize(new Dimension(170,126));setMaximumSize(new Dimension(Integer.MAX_VALUE,126));}
         void setTarget(double value) { target=Math.max(0,Math.min(1,value));repaint(); }
+        void setGoalLevel(int value){targetLevel=value;repaint();}
         void animate(boolean celebration) {
             if (reducedMotion)shown=target;
             else shown+=(target-shown)*0.15;
@@ -225,7 +260,7 @@ final class CombatCoachPanel extends PluginPanel {
             g.drawString(pct,cx-fm.stringWidth(pct)/2,cy+7);
             g.setFont(new Font(Font.DIALOG,Font.PLAIN,10));
             g.setColor(MUTED);
-            String msg="GOAL PROGRESS";
+            String msg="TO LEVEL "+targetLevel;
             FontMetrics sfm=g.getFontMetrics();
             g.drawString(msg,cx-sfm.stringWidth(msg)/2,cy+63);
             g.dispose();
@@ -253,6 +288,15 @@ final class CombatCoachPanel extends PluginPanel {
     private static Label small(String s,Color color){return new Label(s,10,color,true);}
     private static Component gap(int px){return Box.createVerticalStrut(px);}
     private static void addSection(JPanel parent,JPanel section){parent.add(section);parent.add(gap(9));}
+    private static JButton tab(String title,boolean selected) {
+        JButton tab=new JButton(title);
+        tab.setForeground(LIGHT);
+        tab.setBackground(selected?new Color(30,115,135):PANEL);
+        tab.setFont(new Font(Font.DIALOG,Font.BOLD,11));
+        tab.setFocusable(false);
+        tab.setBorder(new EmptyBorder(5,4,5,4));
+        return tab;
+    }
     private static JButton button(String text,ActionListener fn,boolean primary) {
         JButton b=new JButton(text);b.addActionListener(fn);
         b.setForeground(primary?new Color(16,24,27):LIGHT);
@@ -316,6 +360,7 @@ final class CombatCoachPanel extends PluginPanel {
     }
     private void updateGoal() {
         int targetLevel=((Number)goal.getValue()).intValue();
+        ring.setGoalLevel(targetLevel);
         if(targetLevel<=currentLevel){
             remaining.value("Goal reached");forecast.value("Choose a higher goal");
             duration.value("");status.value("COMPLETE");ring.setTarget(1);
