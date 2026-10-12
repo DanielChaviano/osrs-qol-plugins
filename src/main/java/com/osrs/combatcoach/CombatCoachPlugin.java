@@ -13,6 +13,7 @@ import net.runelite.api.Skill;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.callback.ClientThread;
@@ -43,6 +44,8 @@ public class CombatCoachPlugin extends Plugin {
     private Skill active = Skill.ATTACK;
     private long lastSkillGain = 0;
     private boolean ready;
+    private final CombatXpTracker xpTracker = new CombatXpTracker();
+    private int currentXp = 0;
     private Skill measuredSkill;
     private int sessionStartXp = -1;
     private long sessionStartMs;
@@ -54,7 +57,8 @@ public class CombatCoachPlugin extends Plugin {
 
     @Override protected void startUp() {
         panel = new CombatCoachPanel(e -> clientThread.invoke(this::refresh),
-            e -> clientThread.invoke(this::navigateToRecommendation));
+            e -> clientThread.invoke(this::navigateToRecommendation),
+            e -> clientThread.invoke(this::refresh));
         button = NavigationButton.builder().tooltip("Combat Coach").priority(7).panel(panel)
             .icon(ImageUtil.resizeImage(PIN, 24, 24)).build();
         toolbar.addNavigation(button);
@@ -67,7 +71,7 @@ public class CombatCoachPlugin extends Plugin {
     @Subscribe public void onGameStateChanged(GameStateChanged event) {
         ready = event.getGameState() == GameState.LOGGED_IN;
         if (!ready) { clearMarker(); if (panel != null) SwingUtilities.invokeLater(() -> panel.clear()); }
-        else { measuredSkill=null; sessionStartXp=-1; recentXp=-1; refresh(); }
+        else { measuredSkill=null; sessionStartXp=-1; recentXp=-1; xpTracker.reset(); refresh(); }
     }
     @Subscribe public void onStatChanged(StatChanged event) {
         Skill s=event.getSkill();
@@ -78,6 +82,9 @@ public class CombatCoachPlugin extends Plugin {
         knownXp[s.ordinal()] = xp;
         if (oldXp == null || xp <= oldXp) return;
         if (s == Skill.HITPOINTS) return;
+        if (s == selectedSkill() || config.focus() == CombatCoachConfig.Focus.AUTO) {
+            xpTracker.addXp(s, xp-oldXp, System.currentTimeMillis());
+        }
         active=s;
         if (measuredSkill != s || sessionStartXp < 0) {
             measuredSkill=s;
@@ -89,6 +96,19 @@ public class CombatCoachPlugin extends Plugin {
         refresh();
     }
     private final Integer[] knownXp = new Integer[Skill.values().length];
+    @Subscribe public void onGameTick(GameTick tick) {
+        if (!ready || panel==null || client.getLocalPlayer()==null) return;
+        Skill chosen=selectedSkill();
+        xpTracker.select(chosen);
+        if (client.getLocalPlayer().getInteracting() instanceof net.runelite.api.NPC) {
+            xpTracker.observeCombat(chosen,System.currentTimeMillis());
+        }
+        if (client.getTickCount()%2==0) {
+            int xp=client.getSkillExperience(chosen);
+            long rate=xpTracker.rate(System.currentTimeMillis());
+            SwingUtilities.invokeLater(() -> { if (panel!=null) panel.updateProgress(xp,rate); });
+        }
+    }
     @Subscribe public void onItemContainerChanged(ItemContainerChanged event) {
         if (ready && event.getContainerId() == net.runelite.api.InventoryID.EQUIPMENT.getId()) refresh();
     }
@@ -127,6 +147,11 @@ public class CombatCoachPlugin extends Plugin {
         SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next,loadout,rateFor(chosen)); });
     }
     private String rateFor(Skill chosen) {
+        long rate = xpTracker.rate(System.currentTimeMillis());
+        return rate < 0 ? "Waiting for combat XP" : String.format(java.util.Locale.US, "%,d XP/hr",rate);
+    }
+    /* Legacy session-rate implementation retained below for reference only. */
+    private String oldSessionRateFor(Skill chosen) {
         if (measuredSkill != chosen || sessionStartXp < 0 || recentXp < sessionStartXp) {
             return "Measured XP/hr: waiting for XP gains";
         }
