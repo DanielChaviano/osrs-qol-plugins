@@ -2,6 +2,9 @@ package com.osrs.combatcoach;
 
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.PluginPanel;
@@ -20,6 +23,14 @@ final class CombatCoachPanel extends PluginPanel {
     private final JTextArea target = emphasis("Waiting for game...", 16, GREEN);
     private final JTextArea rate = emphasis("Waiting for combat XP", 14, WHITE);
     private final JLabel statsA = label("-", 13, WHITE, false);
+    private final JPanel statTiles = new JPanel(new GridLayout(0,3,6,6));
+    private final JSpinner goal = new JSpinner(new SpinnerNumberModel(20,1,99,1));
+    private final JLabel eta = label("Train to your goal to see an ETA",13,WHITE,true);
+    private final JLabel remaining = label("Waiting for XP...",12,MUTED,false);
+    private int currentLevel=1;
+    private int currentXp=0;
+    private long currentRate=-1;
+    private final ActionListener goalCallback;
     private final JLabel statsB = label("-", 13, WHITE, false);
     private final JLabel statsC = label("-", 13, WHITE, false);
     private final JLabel weapon = label("-", 14, CYAN, true);
@@ -27,7 +38,8 @@ final class CombatCoachPanel extends PluginPanel {
     private final JTextArea reason = wrap();
     private final JTextArea access = wrap();
 
-    CombatCoachPanel(ActionListener refresh, ActionListener navigate) {
+    CombatCoachPanel(ActionListener refresh, ActionListener navigate, ActionListener goalChanged) {
+        goalCallback=goalChanged;
         setLayout(new BorderLayout());
         setBackground(BG);
 
@@ -60,14 +72,30 @@ final class CombatCoachPanel extends PluginPanel {
         contents.add(xp);
         contents.add(gap(10));
 
+        JPanel goalCard = card();
+        goalCard.add(section("LEVEL GOAL + LOCAL ETA", YELLOW));
+        goalCard.add(gap(7));
+        JPanel goalRow = new JPanel(new BorderLayout(8,0));
+        goalRow.setBackground(CARD);
+        goalRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        goalRow.add(label("Target level",13,WHITE,true),BorderLayout.WEST);
+        goal.setFont(new Font(Font.DIALOG,Font.BOLD,14));
+        goal.addChangeListener(e -> { updateGoal(); goalCallback.actionPerformed(null); });
+        goalRow.add(goal,BorderLayout.EAST);
+        goalCard.add(goalRow);
+        goalCard.add(gap(9));
+        goalCard.add(remaining);
+        goalCard.add(gap(6));
+        goalCard.add(eta);
+        contents.add(goalCard);
+        contents.add(gap(10));
+
         JPanel build = card();
         build.add(section("COMBAT LEVELS", CYAN));
         build.add(gap(7));
-        build.add(statsA);
-        build.add(gap(4));
-        build.add(statsB);
-        build.add(gap(4));
-        build.add(statsC);
+        statTiles.setOpaque(false);
+        statTiles.setAlignmentX(Component.LEFT_ALIGNMENT);
+        build.add(statTiles);
         build.add(gap(11));
         build.add(section("EQUIPPED WEAPON", CYAN));
         build.add(gap(5));
@@ -173,7 +201,17 @@ final class CombatCoachPanel extends PluginPanel {
         skill.setText(trainingSkill + "  /  Level " + skillLevel);
         target.setText(spot.name);
         rate.setText(xpRate.replace("Measured XP/hr: ", ""));
-        statsA.setText("ATK " + gear.attack + "    STR " + gear.strength + "    DEF " + gear.defence);
+        statTiles.removeAll();
+        addTile("ATK",gear.attack,trainingSkill.equalsIgnoreCase("Attack"));
+        addTile("STR",gear.strength,trainingSkill.equalsIgnoreCase("Strength"));
+        addTile("DEF",gear.defence,trainingSkill.equalsIgnoreCase("Defence"));
+        addTile("HP",gear.hitpoints,false);
+        addTile("RNG",gear.ranged,trainingSkill.equalsIgnoreCase("Ranged"));
+        addTile("MAG",gear.magic,trainingSkill.equalsIgnoreCase("Magic"));
+        addTile("PRAY",gear.prayer,false);
+        currentLevel=skillLevel;
+        if (((Number)goal.getValue()).intValue()<=skillLevel && skillLevel<99) goal.setValue(Math.min(99,skillLevel+1));
+        updateGoal();
         statsB.setText("HP " + gear.hitpoints + "    RNG " + gear.ranged + "    MAG " + gear.magic);
         statsC.setText("PRAYER " + gear.prayer);
         weapon.setText(gear.weapon);
@@ -189,6 +227,50 @@ final class CombatCoachPanel extends PluginPanel {
         access.setText(spot.requirements);
         revalidate();
         repaint();
+    }
+
+    private void addTile(String name,int value,boolean highlighted) {
+        JPanel tile=new JPanel(new BorderLayout());
+        tile.setBackground(highlighted?new Color(31,96,85):new Color(51,59,68));
+        tile.setBorder(new EmptyBorder(7,5,7,5));
+        JLabel nameLabel=label(name,11,highlighted?GREEN:MUTED,true);
+        JLabel valueLabel=label(Integer.toString(value),19,WHITE,true);
+        tile.add(nameLabel,BorderLayout.NORTH);
+        tile.add(valueLabel,BorderLayout.SOUTH);
+        statTiles.add(tile);
+    }
+
+    void updateProgress(int xp,long ratePerHour) {
+        currentXp=xp;
+        currentRate=ratePerHour;
+        rate.setText(ratePerHour<0?"Waiting for XP gains":String.format(java.util.Locale.US,"%,d XP/hr",ratePerHour));
+        updateGoal();
+    }
+
+    private void updateGoal() {
+        int targetLevel=((Number)goal.getValue()).intValue();
+        if (targetLevel<=currentLevel) {
+            remaining.setText("Goal reached!");
+            eta.setText("Choose a higher target level");
+            return;
+        }
+        long needed=Math.max(0L,xpForLevel(targetLevel)-currentXp);
+        remaining.setText(String.format(java.util.Locale.US,"%,d XP remaining",needed));
+        if (currentXp<=0 || currentRate<=0) {
+            eta.setText("ETA: waiting for usable XP rate");
+            return;
+        }
+        long seconds=(long)Math.ceil(needed*3600.0/currentRate);
+        if (seconds>365L*24*3600) { eta.setText("ETA: more than 1 year");return; }
+        String when=DateTimeFormatter.ofPattern("EEE h:mm a").withZone(ZoneId.systemDefault())
+            .format(Instant.now().plusSeconds(seconds));
+        eta.setText("Estimated: " + when);
+    }
+
+    private static int xpForLevel(int level) {
+        int sum=0;
+        for(int i=1;i<level;i++) sum+=(int)Math.floor(i+300*Math.pow(2,i/7.0));
+        return sum/4;
     }
 
     void clear() {
