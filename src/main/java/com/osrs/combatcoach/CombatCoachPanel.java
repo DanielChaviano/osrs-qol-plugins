@@ -47,7 +47,7 @@ final class CombatCoachPanel extends PluginPanel {
         setLayout(new BorderLayout());
         setBackground(BG);
 
-        JPanel contents = new JPanel();
+        JPanel contents = new SidebarContents();
         contents.setLayout(new BoxLayout(contents, BoxLayout.Y_AXIS));
         contents.setBackground(BG);
         contents.setBorder(new EmptyBorder(12, 10, 18, 10));
@@ -81,7 +81,7 @@ final class CombatCoachPanel extends PluginPanel {
         contents.add(gap(10));
 
         JPanel goalCard = card();
-        goalCard.add(section("LEVEL GOAL + LOCAL ETA", YELLOW));
+        goalCard.add(section("LEVEL GOAL + ETA", YELLOW));
         goalCard.add(gap(7));
         JPanel goalRow = new JPanel(new BorderLayout(8,0));
         goalRow.setBackground(CARD);
@@ -101,7 +101,7 @@ final class CombatCoachPanel extends PluginPanel {
         contents.add(gap(10));
 
         JPanel comparison = card();
-        comparison.add(section("MONSTER XP COMPARISON", YELLOW));
+        comparison.add(section("MEASURED MONSTERS", YELLOW));
         comparison.add(gap(7));
         comparison.add(measuredBest);
         comparison.add(gap(7));
@@ -116,7 +116,7 @@ final class CombatCoachPanel extends PluginPanel {
         contents.add(comparison);
         contents.add(gap(10));
         JPanel estimates = card();
-        estimates.add(section("PREDICTED MELEE XP / HOUR", CYAN));
+        estimates.add(section("ESTIMATED XP / HR", CYAN));
         estimates.add(gap(6));
         modelCompare.setForeground(WHITE);
         estimates.add(modelCompare);
@@ -159,6 +159,7 @@ final class CombatCoachPanel extends PluginPanel {
         scroller.setBorder(null);
         scroller.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scroller.getVerticalScrollBar().setUnitIncrement(16);
+        scroller.getHorizontalScrollBar().setValue(0);
         scroller.getViewport().addChangeListener(e -> {
             int width = scroller.getViewport().getExtentSize().width;
             if (width <= 0) return;
@@ -167,9 +168,21 @@ final class CombatCoachPanel extends PluginPanel {
                 textWidth = available;
                 for (JTextArea area : fittedAreas) resizeArea(area);
                 contents.revalidate();
+                if (scroller.getViewport().getViewPosition().x != 0) {
+                    Point pos=scroller.getViewport().getViewPosition();
+                    scroller.getViewport().setViewPosition(new Point(0,pos.y));
+                }
             }
         });
         add(scroller, BorderLayout.CENTER);
+    }
+
+    private static final class SidebarContents extends JPanel implements Scrollable {
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle visibleRect,int orientation,int direction) { return 16; }
+        @Override public int getScrollableBlockIncrement(Rectangle visibleRect,int orientation,int direction) { return Math.max(50,visibleRect.height-32); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
     private static JPanel card() {
@@ -212,7 +225,7 @@ final class CombatCoachPanel extends PluginPanel {
         a.setForeground(WHITE);
         a.setAlignmentX(Component.LEFT_ALIGNMENT);
         a.setBorder(null);
-        a.setColumns(18);
+        a.setColumns(1);
         return a;
     }
 
@@ -233,7 +246,7 @@ final class CombatCoachPanel extends PluginPanel {
         Dimension d=new Dimension(width,height);
         area.setPreferredSize(d);
         area.setMinimumSize(d);
-        area.setMaximumSize(d);
+        area.setMaximumSize(new Dimension(Integer.MAX_VALUE,height));
     }
 
         private static Component gap(int pixels) {
