@@ -29,6 +29,7 @@ final class CombatCoachPanel extends PluginPanel {
     private final JLabel remaining = label("Waiting for XP...",12,MUTED,false);
     private final JTextArea measuredBest = emphasis("No measured winner yet",13,GREEN);
     private final JTextArea measuredCompare = wrap();
+    private final JTextArea modelCompare = wrap();
     private int currentLevel=1;
     private int currentXp=0;
     private long currentRate=-1;
@@ -100,6 +101,13 @@ final class CombatCoachPanel extends PluginPanel {
         comparison.add(gap(7));
         comparison.add(label("Observed sessions only. Not a global best claim.",11,MUTED,false));
         contents.add(comparison);
+        contents.add(gap(10));
+        JPanel estimates = card();
+        estimates.add(section("PREDICTED MELEE XP / HOUR", CYAN));
+        estimates.add(gap(6));
+        modelCompare.setForeground(WHITE);
+        estimates.add(modelCompare);
+        contents.add(estimates);
         contents.add(gap(10));
 
         JPanel build = card();
@@ -201,8 +209,9 @@ final class CombatCoachPanel extends PluginPanel {
     }
 
     void showRecommendation(String trainingSkill, int skillLevel, TrainingSpot spot,
-                            CombatLoadout gear, String xpRate) {
+                            CombatLoadout gear, String xpRate, String predicted) {
         skill.setText(trainingSkill + "  /  Level " + skillLevel);
+        modelCompare.setText(predicted);
         target.setText(spot.name);
         rate.setText(xpRate.replace("Measured XP/hr: ", ""));
         statTiles.removeAll();
@@ -283,6 +292,7 @@ final class CombatCoachPanel extends PluginPanel {
         rate.setText("Waiting for combat XP");
         measuredBest.setText("No measured winner yet");
         measuredCompare.setText("");
+        modelCompare.setText("");
         statsA.setText("-");
         statsB.setText("-");
         statsC.setText("-");
