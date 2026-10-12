@@ -12,6 +12,8 @@ import net.runelite.api.GameState;
 import net.runelite.api.Skill;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
@@ -32,6 +34,7 @@ public class CombatCoachPlugin extends Plugin {
     @Inject private ClientThread clientThread;
     @Inject private ClientToolbar toolbar;
     @Inject private EventBus eventBus;
+    @Inject private ItemManager itemManager;
     @Inject private WorldMapPointManager mapPoints;
     @Inject private CombatCoachConfig config;
     private CombatCoachPanel panel;
@@ -76,6 +79,9 @@ public class CombatCoachPlugin extends Plugin {
         refresh();
     }
     private final Integer[] knownXp = new Integer[Skill.values().length];
+    @Subscribe public void onItemContainerChanged(ItemContainerChanged event) {
+        if (ready && event.getContainerId() == net.runelite.api.InventoryID.EQUIPMENT.getId()) refresh();
+    }
     @Subscribe public void onConfigChanged(ConfigChanged event) {
         if ("combatcoach".equals(event.getGroup())) clientThread.invoke(this::refresh);
     }
@@ -96,9 +102,8 @@ public class CombatCoachPlugin extends Plugin {
         if (!ready || panel == null) return;
         Skill chosen=selectedSkill();
         int level=client.getRealSkillLevel(chosen);
-        TrainingSpot next=TrainingPlanner.choose(chosen, level,
-            client.getRealSkillLevel(Skill.ATTACK), client.getRealSkillLevel(Skill.STRENGTH),
-            client.getRealSkillLevel(Skill.DEFENCE), config);
+        CombatLoadout loadout=CombatLoadout.read(client, itemManager);
+        TrainingSpot next=TrainingPlanner.choose(chosen, level, loadout, config);
         boolean replace = currentSpot == null || !currentSpot.name.equals(next.name) ||
             !currentSpot.point.equals(next.point) || (destination == null && config.worldMapPin());
         currentSpot=next;
@@ -109,7 +114,7 @@ public class CombatCoachPlugin extends Plugin {
             destination.setName("Combat Coach: " + next.name);
             mapPoints.add(destination);
         }
-        SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next); });
+        SwingUtilities.invokeLater(() -> { if (panel != null) panel.showRecommendation(chosen.getName(),level,next,loadout); });
     }
     private void navigateToRecommendation() {
         if (!ready || currentSpot == null || client.getLocalPlayer() == null) return;
