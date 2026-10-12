@@ -14,5 +14,5 @@ public interface MilestoneScreenshotsConfig extends Config
     default boolean includeFrame() { return false; }
 
     @ConfigItem(keyName = "notify", name = "Notify on screenshot", description = "Show a notification when a screenshot is saved")
-    default boolean notifyOnScreenshot() { return false; }
+    default boolean notifyOnScreenshot() { return true; }
 }
