@@ -6,51 +6,62 @@ import javax.swing.*;
 import net.runelite.client.ui.PluginPanel;
 
 final class CombatCoachPanel extends PluginPanel {
-    private final JLabel skill = new JLabel("Log in to get suggestions");
+    private final JLabel heading = new JLabel("COMBAT COACH");
+    private final JLabel skill = new JLabel("Log in to get a suggestion");
     private final JLabel target = new JLabel(" ");
-    private final JTextArea description = new JTextArea();
-    private final JLabel level = new JLabel(" ");
-    private final JTextArea loadout = new JTextArea();
+    private final JLabel rates = new JLabel(" ");
+    private final JTextArea details = new JTextArea();
+    private final JButton navigateButton = new JButton("Navigate with Shortest Path");
+
     CombatCoachPanel(ActionListener refresh, ActionListener navigate) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        JLabel heading = new JLabel("COMBAT COACH");
-        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 17f));
-        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
-        add(heading); add(Box.createVerticalStrut(14));
-        for (JLabel l : new JLabel[]{skill,level,target}) {
-            l.setAlignmentX(Component.LEFT_ALIGNMENT);
-            add(l); add(Box.createVerticalStrut(8));
+        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 16f));
+        for (JLabel label : new JLabel[]{heading, skill, target, rates}) {
+            label.setAlignmentX(Component.LEFT_ALIGNMENT);
+            add(label);
+            add(Box.createVerticalStrut(9));
         }
-        loadout.setEditable(false); loadout.setOpaque(false);
-        loadout.setWrapStyleWord(true); loadout.setLineWrap(true);
-        loadout.setFocusable(false);
-        loadout.setAlignmentX(Component.LEFT_ALIGNMENT);
-        add(loadout); add(Box.createVerticalStrut(12));
-        description.setEditable(false); description.setOpaque(false);
-        description.setWrapStyleWord(true); description.setLineWrap(true);
-        description.setFocusable(false);
-        description.setAlignmentX(Component.LEFT_ALIGNMENT);
-        add(description); add(Box.createVerticalStrut(12));
-        JButton button = new JButton("Refresh suggestion");
-        button.addActionListener(refresh);
-        button.setAlignmentX(Component.LEFT_ALIGNMENT);
-        add(button);
-        add(Box.createVerticalStrut(8));
-        JButton navigateButton = new JButton("Navigate with Shortest Path");
+        details.setEditable(false);
+        details.setOpaque(false);
+        details.setLineWrap(true);
+        details.setWrapStyleWord(true);
+        details.setFocusable(false);
+        details.setFont(details.getFont().deriveFont(12f));
+        details.setAlignmentX(Component.LEFT_ALIGNMENT);
+        details.setBorder(BorderFactory.createEmptyBorder(4, 0, 8, 4));
+        add(details);
+        JButton refreshButton = new JButton("Refresh recommendation");
+        refreshButton.addActionListener(refresh);
+        refreshButton.setAlignmentX(Component.LEFT_ALIGNMENT);
+        add(refreshButton);
+        add(Box.createVerticalStrut(7));
         navigateButton.addActionListener(navigate);
         navigateButton.setAlignmentX(Component.LEFT_ALIGNMENT);
         add(navigateButton);
     }
-    void showRecommendation(String trainingSkill, int skillLevel, TrainingSpot spot, CombatLoadout gear) {
-        skill.setText("Training: " + trainingSkill);
-        level.setText("Skill level: " + skillLevel);
+
+    void showRecommendation(String trainingSkill, int skillLevel, TrainingSpot spot,
+                            CombatLoadout gear, String xpRate) {
+        skill.setText("Training " + trainingSkill + "  |  Level " + skillLevel);
         target.setText("Suggested: " + spot.name);
-        loadout.setText("Attack " + gear.attack + "  Strength " + gear.strength + "  Defence " + gear.defence +
-            "\\nHP " + gear.hitpoints + "  Ranged " + gear.ranged + "  Magic " + gear.magic +
-            "  Prayer " + gear.prayer + "\\nWeapon: " + gear.weapon + "\\nEquipped: " + gear.armor);
-        description.setText("WHY: " + spot.reason + "\n\nREQUIRES: " + spot.requirements +
-            "\n\nClick Navigate with Shortest Path to request a walkable route, or open the world map (M) for the blue marker. " +
-            "Equipment-aware recommendations are estimates, NOT verified best XP/hr. Weapon type and combat style need validation.");
+        rates.setText(xpRate);
+        details.setText(
+            "STATS\n" +
+            "Attack " + gear.attack + "  /  Strength " + gear.strength + "  /  Defence " + gear.defence + "\n" +
+            "HP " + gear.hitpoints + "  /  Ranged " + gear.ranged + "  /  Magic " + gear.magic + "\n\n" +
+            "WEAPON\n" + gear.weapon + "\n\n" +
+            "ARMOUR\n" + gear.armor + "\n\n" +
+            "WHY THIS TARGET\n" + spot.reason + "\n\n" +
+            "ACCESS\n" + spot.requirements + "\n\n" +
+            "Recommendation is a heuristic, not verified optimal XP/hour. " +
+            "Measured XP/hour is specific to your session and does not account for travel.");
+        details.setCaretPosition(0);
     }
-    void clear() { skill.setText("Log in to get suggestions"); level.setText(" "); target.setText(" "); description.setText(""); loadout.setText(""); }
+
+    void clear() {
+        skill.setText("Log in to get a suggestion");
+        target.setText(" ");
+        rates.setText(" ");
+        details.setText("");
+    }
 }
