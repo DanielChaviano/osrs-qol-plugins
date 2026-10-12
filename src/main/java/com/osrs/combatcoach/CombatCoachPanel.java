@@ -42,6 +42,8 @@ final class CombatCoachPanel extends PluginPanel {
     private final Label targetXpText=new Label("0",12,LIGHT,true);
     private final Label remainingXpText=new Label("0",12,LIGHT,true);
     private final JButton drawerButton=new JButton("TRAINING ANALYSIS  +");
+    private final JLabel brand=new JLabel("⚔ COMBAT COACH");
+    private final JLabel subtitle=new JLabel("TRAIN SMARTER  •  REACH FURTHER");
     private final javax.swing.Timer animations;
     private int currentLevel=1,currentXp=0,previousLevel=-1;
     private long currentRate=-1;
@@ -55,24 +57,29 @@ final class CombatCoachPanel extends PluginPanel {
         content.setLayout(new BoxLayout(content,BoxLayout.Y_AXIS));
         content.setBackground(BG);
         content.setBorder(new EmptyBorder(10,8,15,8));
+        brand.setForeground(GOLD);brand.setFont(new Font(Font.DIALOG,Font.BOLD,16));
+        brand.setAlignmentX(Component.LEFT_ALIGNMENT);
+        subtitle.setForeground(CYAN);subtitle.setFont(new Font(Font.DIALOG,Font.PLAIN,9));
+        subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+        content.add(brand);content.add(gap(3));content.add(subtitle);content.add(gap(11));
 
         JPanel banner=panel();
         banner.setBackground(new Color(18,51,69));
         banner.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(47,112,140),1,true),
             new EmptyBorder(12,11,12,11)));
-        banner.add(small("COMBAT COACH  /  LIVE",CYAN));
+        banner.add(small("CURRENT TRAINING",CYAN));
         banner.add(gap(7));
         banner.add(headline);
         banner.add(gap(3));
         banner.add(level);
         banner.add(gap(8));
-        banner.add(small("RECOMMENDED TARGET",MUTED));
+        banner.add(small("RECOMMENDED MONSTER",GOLD));
         banner.add(gap(3));
         banner.add(recommended);
         addSection(content,banner);
 
-        JPanel goalPanel=panel();
+        JPanel goalPanel=new ForecastPanel();
         goalPanel.add(small("LEVEL PROGRESSION",GOLD));
         goalPanel.add(gap(7));
         JPanel selector=new JPanel(new BorderLayout(4,0));
@@ -154,8 +161,8 @@ final class CombatCoachPanel extends PluginPanel {
         JButton trainingTab=tab("TRAINING",true);
         JButton analysisTab=tab("ANALYSIS",false);
         tabs.add(trainingTab);tabs.add(analysisTab);
-        content.add(tabs,0);
-        content.add(gap(9),1);
+        content.add(tabs,3);
+        content.add(gap(9),4);
 
         // The same real data model backs both views. No fake settings or mock elements.
         Runnable showTraining=()->{
@@ -267,7 +274,35 @@ final class CombatCoachPanel extends PluginPanel {
         }
     }
 
-    private static final class GradientPanel extends JPanel {
+    private static final class SkillCell extends JPanel {
+        private final boolean selected;
+        SkillCell(boolean selected){this.selected=selected;}
+        @Override protected void paintComponent(Graphics original){
+            Graphics2D g=(Graphics2D)original.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setPaint(new GradientPaint(0,0,selected?new Color(18,109,83):new Color(46,63,79),
+                0,Math.max(50,getHeight()),selected?new Color(17,72,65):new Color(30,41,57)));
+            g.fillRoundRect(0,0,getWidth()-1,getHeight()-1,9,9);
+            g.setColor(selected?new Color(91,245,167):new Color(68,90,108));
+            g.drawRoundRect(0,0,getWidth()-1,getHeight()-1,9,9);g.dispose();
+        }
+    }
+    private static final class ForecastPanel extends GradientPanel {
+        @Override protected void paintComponent(Graphics graphics){
+            super.paintComponent(graphics);
+            Graphics2D g=(Graphics2D)graphics.create();
+            int w=getWidth(),h=getHeight();
+            g.setPaint(new GradientPaint(0,h*0.55f,new Color(17,53,73,0),w,h,new Color(119,81,34,100)));
+            g.fillRoundRect(0,0,w-1,h-1,13,13);
+            g.setColor(new Color(237,195,92,55));
+            for(int i=0;i<8;i++){
+                int x=w-10-i*13,y=h-14-((i*i*9)%48);
+                g.fillOval(x,y,2,2);
+            }
+            g.dispose();
+        }
+    }
+    private static class GradientPanel extends JPanel {
         @Override protected void paintComponent(Graphics graphics) {
             Graphics2D g=(Graphics2D)graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
@@ -310,7 +345,7 @@ final class CombatCoachPanel extends PluginPanel {
         return b;
     }
     private void tile(String name,int number,boolean active) {
-        JPanel cell=new JPanel(new BorderLayout());
+        JPanel cell=new SkillCell(active);cell.setLayout(new BorderLayout());
         cell.setBackground(active?new Color(27,99,77):new Color(49,61,73));
         cell.setBorder(new EmptyBorder(5,5,5,5));
         JLabel title=new JLabel(name),value=new JLabel(Integer.toString(number));
