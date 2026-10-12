@@ -7,6 +7,8 @@ import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.Skill;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.game.ItemStats;
+import net.runelite.client.game.ItemEquipmentStats;
 
 /** A snapshot of the visible equipped loadout, not a simulated DPS calculation. */
 final class CombatLoadout {
@@ -14,12 +16,16 @@ final class CombatLoadout {
     final String weapon, armor;
     final int armorPieces;
     final int weaponTier;
+    final int stabBonus, slashBonus, crushBonus, strengthBonus, attackSpeed;
 
     private CombatLoadout(int attack, int strength, int defence, int hitpoints, int ranged,
-                          int magic, int prayer, String weapon, String armor, int armorPieces, int weaponTier) {
+                          int magic, int prayer, String weapon, String armor, int armorPieces, int weaponTier,
+                          int stabBonus,int slashBonus,int crushBonus,int strengthBonus,int attackSpeed) {
         this.attack=attack; this.strength=strength; this.defence=defence; this.hitpoints=hitpoints;
         this.ranged=ranged; this.magic=magic; this.prayer=prayer;
         this.weapon=weapon; this.armor=armor; this.armorPieces=armorPieces; this.weaponTier=weaponTier;
+        this.stabBonus=stabBonus;this.slashBonus=slashBonus;this.crushBonus=crushBonus;
+        this.strengthBonus=strengthBonus;this.attackSpeed=attackSpeed;
     }
 
     static CombatLoadout read(Client client, ItemManager items) {
@@ -28,6 +34,7 @@ final class CombatLoadout {
         StringBuilder armor=new StringBuilder();
         int pieces=0;
         int tier=0;
+        int stab=0,slash=0,crush=0,strBonus=0,speed=4;
         if (equipment!=null) {
             int weaponSlot=EquipmentInventorySlot.WEAPON.getSlotIdx();
             Item[] equipped=equipment.getItems();
@@ -36,6 +43,15 @@ final class CombatLoadout {
                 if (item==null || item.getId()<=0) continue;
                 String name=items.getItemComposition(item.getId()).getName();
                 if (name==null || name.trim().isEmpty()) continue;
+                ItemStats stats=items.getItemStats(item.getId());
+                ItemEquipmentStats equipmentStats=stats==null?null:stats.getEquipment();
+                if(equipmentStats!=null){
+                    stab+=equipmentStats.getAstab();
+                    slash+=equipmentStats.getAslash();
+                    crush+=equipmentStats.getAcrush();
+                    strBonus+=equipmentStats.getStr();
+                    if(slot==weaponSlot && equipmentStats.getAspeed()>0) speed=equipmentStats.getAspeed();
+                }
                 if (slot==weaponSlot) {
                     weapon=name;
                     tier=estimateTier(name);
@@ -53,7 +69,8 @@ final class CombatLoadout {
             client.getRealSkillLevel(Skill.STRENGTH), client.getRealSkillLevel(Skill.DEFENCE),
             client.getRealSkillLevel(Skill.HITPOINTS),client.getRealSkillLevel(Skill.RANGED),
             client.getRealSkillLevel(Skill.MAGIC),client.getRealSkillLevel(Skill.PRAYER),
-            weapon, pieces==0?"None":armor.toString(),pieces,tier);
+            weapon, pieces==0?"None":armor.toString(),pieces,tier,
+            stab,slash,crush,strBonus,speed);
     }
 
     private static int estimateTier(String name) {
