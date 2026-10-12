@@ -26,7 +26,8 @@ final class CombatCoachPanel extends PluginPanel {
     private final JLabel statsA = label("-", 13, WHITE, false);
     private final JPanel statTiles = new JPanel(new GridLayout(0,3,6,6));
     private final JSpinner goal = new JSpinner(new SpinnerNumberModel(20,1,99,1));
-    private final JLabel eta = label("Train to your goal to see an ETA",13,WHITE,true);
+    private final JTextArea eta = emphasis("Set a goal to see an ETA",14,WHITE);
+    private final JTextArea duration = emphasis("",12,MUTED);
     private final JLabel remaining = label("Waiting for XP...",12,MUTED,false);
     private final JTextArea measuredBest = emphasis("No measured winner yet",13,GREEN);
     private final JTextArea measuredCompare = wrap();
@@ -93,6 +94,8 @@ final class CombatCoachPanel extends PluginPanel {
         goalCard.add(remaining);
         goalCard.add(gap(6));
         goalCard.add(eta);
+        goalCard.add(gap(5));
+        goalCard.add(duration);
         contents.add(goalCard);
         contents.add(gap(10));
 
@@ -289,23 +292,32 @@ final class CombatCoachPanel extends PluginPanel {
         int targetLevel=((Number)goal.getValue()).intValue();
         if (targetLevel<=currentLevel) {
             remaining.setText("Goal reached!");
-            eta.setText("Choose a higher target level");
+            fit(eta,"Choose a higher target level");
+            fit(duration,"");
             return;
         }
         long needed=Math.max(0L,xpForLevel(targetLevel)-currentXp);
         remaining.setText(String.format(java.util.Locale.US,"%,d XP remaining",needed));
         if (currentXp<=0 || currentRate<=0) {
-            eta.setText("ETA: waiting for usable XP rate");
+            fit(eta,"ETA: waiting for XP rate");
+            fit(duration,"");
             return;
         }
+        // Math is intentionally unchanged; only the display is extended.
         long seconds=(long)Math.ceil(needed*3600.0/currentRate);
-        if (seconds>365L*24*3600) { eta.setText("ETA: more than 1 year");return; }
-        String when=DateTimeFormatter.ofPattern("EEE h:mm a").withZone(ZoneId.systemDefault())
-            .format(Instant.now().plusSeconds(seconds));
-        eta.setText("Estimated: " + when);
+        java.time.ZonedDateTime finish=java.time.ZonedDateTime.now(ZoneId.systemDefault()).plusSeconds(seconds);
+        String when=DateTimeFormatter.ofPattern("EEE, MMM d, uuuu 'at' h:mm a",
+            java.util.Locale.US).format(finish);
+        fit(eta,"Estimated: " + when);
+        long days=seconds/86400L;
+        long hours=(seconds%86400L)/3600L;
+        long minutes=(seconds%3600L)/60L;
+        String timeLeft=(days>0 ? days+" days, " : "")+
+            (hours>0 ? hours+" hours, " : "")+minutes+" min";
+        fit(duration,"Time remaining: " + timeLeft);
     }
 
-    private static int xpForLevel(int level) {
+        private static int xpForLevel(int level) {
         int sum=0;
         for(int i=1;i<level;i++) sum+=(int)Math.floor(i+300*Math.pow(2,i/7.0));
         return sum/4;
