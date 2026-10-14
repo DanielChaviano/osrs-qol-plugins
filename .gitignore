@@ -1,5 +1,26 @@
+# Build / editor output
 .gradle/
 build/
+out/
 .idea/
 *.iml
-out/
+*.class
+# Local-only installation and testing
+.build-tools/
+*.ps1
+*.zip
+*.log
+*.bak*
+*.backup-*
+*-backup-*/
+backup-*/
+full-backup-*/
+# Never publish player data
+.runelite/
+credentials.properties
+profiles/
+profiles2/
+screenshots/
+# Locally generated API fixtures are not distribution sources
+fixtures/
+stubs/
